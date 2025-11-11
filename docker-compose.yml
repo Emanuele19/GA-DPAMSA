@@ -1,0 +1,20 @@
+services:
+  gadpamsa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTORCH_CHANNEL: "cpu"   # cambia in "cu121" se vuoi CUDA
+    image: gadpamsa:latest
+    volumes:
+      - ./:/app               # mappa il progetto (utile per modificare/vedere output)
+      - ./result:/app/result  # risultati persistenti
+    working_dir: /app
+    tty: true
+    stdin_open: true
+    # Scommenta queste due righe SOLO se usi GPU NVIDIA e hai Docker abilitato alle GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]

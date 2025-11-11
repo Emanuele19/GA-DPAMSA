@@ -1,0 +1,15 @@
+Appunti:
+Build di due tipi:
+    # CPU
+    docker build --build-arg PYTORCH_CHANNEL=cpu -t gadpmsa:cpu .
+    # GPU
+    docker build --build-arg PYTORCH_CHANNEL=cu121 -t gadpmsa:gpu .
+
+Aprire una shell:
+    # CPU
+    docker run --rm -it -v "$PWD:/app" -w /app gadpmsa:cpu bash
+    # GPU
+    docker run --rm -it --gpus all -v "$PWD:/app" -w /app gadpmsa:gpu bash
+
+Note:
+- La configurazione per gpu richiede che venga decommentata la sezione relativa nel docker-compose.yml
