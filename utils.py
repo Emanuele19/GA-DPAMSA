@@ -747,8 +747,9 @@ def save_inference_csv(csv_data, tool_name, dataset_name):
 
     return csv_file_path  # Return the file path for tracking
 
+from dataset_module import FastaDataset
 
-def run_ga_dpamsa_inference(mode, dataset, dataset_name, model_path):
+def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
     """
     Run inference using GA-DPAMSA and return the results CSV file path.
 
@@ -762,8 +763,8 @@ def run_ga_dpamsa_inference(mode, dataset, dataset_name, model_path):
             * 'sp'  -> Sum of Pairs mode
             * 'cs'  -> Column Score mode
             * 'mo'  -> Multi-Objective mode
-    - dataset (module): The dataset module containing sequences to be aligned.
-    - dataset_name (str): The name of the dataset (used for naming output files).
+    - dataset (module): The dataset object that represents the module containing 
+                        sequences to be aligned.
     - model_path (str): Path to the trained GA-DPAMSA model.
 
     Returns:
@@ -777,10 +778,10 @@ def run_ga_dpamsa_inference(mode, dataset, dataset_name, model_path):
 
     # Construct and return the CSV results file path
     mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
-    return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset_name}_{mode_tag}_GA_DPAMSA_results.csv")
+    return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
 
 
-def run_dpamsa_inference(dataset, dataset_name, model_path):
+def run_dpamsa_inference(dataset: FastaDataset, model_path):
     """
     Run inference using DPAMSA and return the results CSV file path.
 
@@ -804,7 +805,7 @@ def run_dpamsa_inference(dataset, dataset_name, model_path):
     dpamsa_inference(dataset=dataset, model_path=model_path, truncate_file=True)
 
     # Construct and return the CSV results file path
-    return os.path.join(config.DPAMSA_INF_CSV_PATH, f"{dataset_name}_DPAMSA_results.csv")
+    return os.path.join(config.DPAMSA_INF_CSV_PATH, f"{dataset.name}_DPAMSA_results.csv")
 
 
 # ===========================

@@ -16,6 +16,8 @@ import utils
 import datasets.training_dataset.synthetic_dataset_4x101bp as inference_dataset
 import datasets.training_dataset.zhang_dataset_3x30 as training_dataset
 
+from dataset_module import FastaContent, FastaDataset
+
 """
 DPAMSA Main Script
 
@@ -235,7 +237,9 @@ def train(dataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'
     print(f"\nTraining completed successfully.")
 
 
-def inference(dataset=INFERENCE_DATASET, start=0, end=-1, model_path=INFERENCE_MODEL, truncate_file=True):
+
+
+def inference(dataset: FastaDataset, start=0, end=-1, model_path=INFERENCE_MODEL, truncate_file=True):
     """
     Run inference using a pre-trained model on a given dataset.
 
@@ -248,7 +252,7 @@ def inference(dataset=INFERENCE_DATASET, start=0, end=-1, model_path=INFERENCE_M
     """
     output_parameters()
 
-    tag = os.path.splitext(dataset.file_name)[0]
+    tag = dataset.name
     report_file_name = os.path.join(config.DPAMSA_REPORTS_PATH, f"{tag}.txt")
     csv_file_name = os.path.join(config.DPAMSA_INF_CSV_PATH, f"{tag}_DPAMSA_results.csv")
 
@@ -261,13 +265,10 @@ def inference(dataset=INFERENCE_DATASET, start=0, end=-1, model_path=INFERENCE_M
             writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
                              "Exact Matches (EM)", "Column Score (CS)"])
 
-    datasets_to_process = dataset.datasets[start:end if end != -1 else len(dataset.datasets)]
+    datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
 
-    for index, name in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
-
-        if not hasattr(dataset, name):
-            continue
-        seqs = getattr(dataset, name)
+    for index, fasta_content in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
+        seqs = fasta_content.sequences
 
         env = Environment(seqs)
         agent = DQN(env.action_number, env.row, env.max_len, env.max_len * env.max_reward)
@@ -288,7 +289,7 @@ def inference(dataset=INFERENCE_DATASET, start=0, end=-1, model_path=INFERENCE_M
 
         # Create report
         report = (
-            f"File: {name}\n"
+            f"File: {fasta_content.name}\n"
             f"Number of Sequences (QTY): {metrics['QTY']}\n"
             f"Alignment Length (AL): {metrics['AL']}\n"
             f"Sum of Pairs (SP): {metrics['SP']}\n"
@@ -303,7 +304,7 @@ def inference(dataset=INFERENCE_DATASET, start=0, end=-1, model_path=INFERENCE_M
 
         with open(csv_file_name, 'a', newline='') as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow([name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
+            writer.writerow([fasta_content.name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
 
     print(f"\nInference completed successfully.")
     print(f"Report saved at: {report_file_name}")

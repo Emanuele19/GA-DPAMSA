@@ -7,8 +7,6 @@ from DPAMSA.env import Environment
 from GA import GA
 import utils
 
-import datasets.inference_dataset.dataset1_3x30bp as inference_dataset
-
 """
 GA-DPAMSA Inference Script
 ---------------------------
@@ -45,7 +43,7 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 GA_MODE = 'sp'
 
 # Dataset module containing the sequences to be aligned.
-DATASET = inference_dataset
+DATASET = os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp')
 
 # Identifier or path to the trained RL model used for mutation.
 INFERENCE_MODEL = 'new_model_3x30'
@@ -66,8 +64,15 @@ def output_parameters():
     print(f"Mutation Rate: {config.MUTATION_RATE * 100}%")
     print('\n')
 
+from dataset_module import FastaDataset, FastaContent
 
-def inference(mode, dataset=DATASET, start=0, end=-1, model_path='model_3x30', debug=False, truncate_file=True):
+def inference(
+        mode, 
+        dataset:FastaDataset=DATASET, 
+        start=0, end=-1, 
+        model_path='model_3x30', 
+        debug=False, 
+        truncate_file=True):
     """
         Run the genetic algorithm with a specific inference mode.
 
@@ -94,10 +99,9 @@ def inference(mode, dataset=DATASET, start=0, end=-1, model_path='model_3x30', d
         raise ValueError(f"Invalid mode '{mode}'. Choose one of {valid_modes}.")
 
     # Paths definition
-    tag = os.path.splitext(dataset.file_name)[0]
     mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
-    report_file_name = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{tag}_{mode_tag}.txt")
-    csv_file_name = os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{tag}_{mode_tag}_GA_DPAMSA_results.csv")
+    report_file_name = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{dataset.name}_{mode_tag}.txt")
+    csv_file_name = os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
 
     # Create or truncate results files
     if truncate_file:
@@ -112,13 +116,10 @@ def inference(mode, dataset=DATASET, start=0, end=-1, model_path='model_3x30', d
     output_parameters()
 
     # Inference loop
-    datasets_to_process = dataset.datasets[start:end if end != -1 else len(dataset.datasets)]
-    for index, dataset_name in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
-
+    datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
+    for index, fasta_content in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
         # Extract sequences
-        if not hasattr(dataset, dataset_name):
-            continue
-        seqs = getattr(dataset, dataset_name)
+        seqs = fasta_content.sequences
 
         # Initialize Environment
         env = Environment(seqs, convert_data=False)
@@ -135,7 +136,7 @@ def inference(mode, dataset=DATASET, start=0, end=-1, model_path='model_3x30', d
 
         # Create report
         report = (
-            f"File: {dataset_name}\n"
+            f"File: {fasta_content.name}\n"
             f"Number of Sequences (QTY): {metrics['QTY']}\n"
             f"Alignment Length (AL): {metrics['AL']}\n"
             f"Sum of Pairs (SP): {metrics['SP']}\n"
@@ -150,7 +151,7 @@ def inference(mode, dataset=DATASET, start=0, end=-1, model_path='model_3x30', d
 
         with open(csv_file_name, 'a', newline='') as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow([dataset_name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
+            writer.writerow([fasta_content.name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
 
     print(f"\nInference completed successfully.")
     print(f"Report saved at: {report_file_name}")
@@ -164,4 +165,5 @@ if __name__ == "__main__":
        - 'cs'  -> Column Score mode
        - 'mo'  -> Multi-Objective mode
     """
+    default_dataset = FastaDataset()
     inference(mode=GA_MODE, dataset=DATASET, model_path=INFERENCE_MODEL, debug=DEBUG_MODE)
