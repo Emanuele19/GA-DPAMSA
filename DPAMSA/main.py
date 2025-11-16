@@ -37,8 +37,8 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 
-TRAINING_DATASET = training_dataset
-INFERENCE_DATASET = inference_dataset
+TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'zhang_dataset_3x30'))
+INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_4x101bp'))
 INFERENCE_MODEL = 'model_3x30'
 
 
@@ -94,7 +94,7 @@ def open_tensorboard(log_dir):
         return None
 
 
-def train(dataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'):
+def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'):
     """
     Train a reinforcement learning model on the given dataset.
 
@@ -109,29 +109,27 @@ def train(dataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'
 
     # Create SummaryWriter instances for each dataset
     writers = {}
-    log_dir = os.path.join(config.RUNS_PATH, os.path.splitext(dataset.file_name)[0])
-    for name in dataset.datasets:
-        writers[name] = SummaryWriter(os.path.join(log_dir, name))
+    log_dir = os.path.join(config.RUNS_PATH, dataset.name)
+    for fasta in dataset:
+        writers[fasta.name] = SummaryWriter(os.path.join(log_dir, fasta.name))
 
         # Write an initial log entry so TensorBoard detects the logs immediately
-        writers[name].add_scalar('Training/Loss', 0, 0)
-        writers[name].add_scalar('Training/Reward', 0, 0)
-        writers[name].add_scalar('Training/Steps', 0, 0)
-        writers[name].add_scalar('Training/Epsilon', config.EPSILON, 0)
-        writers[name].add_scalar('Metrics/SP', 0, 0)
-        writers[name].add_scalar('Metrics/CS', 0, 0)
-        writers[name].flush()  # Force immediate write to disk
+        writers[fasta.name].add_scalar('Training/Loss', 0, 0)
+        writers[fasta.name].add_scalar('Training/Reward', 0, 0)
+        writers[fasta.name].add_scalar('Training/Steps', 0, 0)
+        writers[fasta.name].add_scalar('Training/Epsilon', config.EPSILON, 0)
+        writers[fasta.name].add_scalar('Metrics/SP', 0, 0)
+        writers[fasta.name].add_scalar('Metrics/CS', 0, 0)
+        writers[fasta.name].flush()  # Force immediate write to disk
 
     # Automatically launch TensorBoard
     _ = open_tensorboard(log_dir)
 
     # Get the subset of datasets to process
-    datasets_to_process = dataset.datasets[start:end if end != -1 else len(dataset.datasets)]
-    for index, name in enumerate(datasets_to_process, start):
+    datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
+    for index, fasta in enumerate(datasets_to_process, start):
 
-        if not hasattr(dataset, name):
-            continue
-        seqs = getattr(dataset, name)
+        seqs = getattr(dataset, fasta.sequences)
 
         # Initialize environment and DQN agent
         env = Environment(seqs)
@@ -150,7 +148,7 @@ def train(dataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'
         reward_history = []              # Store recent rewards for analysis
 
         # Create a single tqdm progress bar
-        pbar = tqdm(total=config.MAX_EPISODE, desc=f'Training on {name}', position=0, leave=True, dynamic_ncols=True)
+        pbar = tqdm(total=config.MAX_EPISODE, desc=f'Training on {fasta.name}', position=0, leave=True, dynamic_ncols=True)
 
         # Training loop
         for episode in range(config.MAX_EPISODE):
@@ -201,6 +199,7 @@ def train(dataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'
             pbar.update(1)
 
             # TensorBoard Logging
+            name = fasta.name
             writers[name].add_scalar('Training/Loss', episode_loss, episode)
             writers[name].add_scalar('Training/Reward', episode_reward, episode)
             writers[name].add_scalar('Training/Steps', steps, episode)
