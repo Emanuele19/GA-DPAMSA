@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl git ca-certificates \
     libglib2.0-0 libsm6 libxext6 libxrender1 \
-    xz-utils bzip2 python3-tk\
+    xz-utils bzip2 python3-tk nano \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
