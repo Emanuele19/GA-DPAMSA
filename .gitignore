@@ -177,3 +177,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+datasets/fasta_files/orthodb_v12
+datasets/orthodb_preparation/dumps
+datasets/orthodb_preparation/global_base_probs.json
+datasets/ogs.txt
+
