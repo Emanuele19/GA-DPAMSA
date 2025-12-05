@@ -59,7 +59,7 @@ class FastaDataset:
         return int(match.group(1)) if match else -1
 
 
-    def __init__(self, path: str, prefix: str = "test"):
+    def __init__(self, path: str, prefix: str = ""):
         self.__path = path
         self.__prefix = prefix
         self.__name = os.path.basename(path)
