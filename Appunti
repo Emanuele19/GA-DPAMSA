@@ -1,4 +1,9 @@
-Appunti:
+Per chi ha la configurazione Vs-code + Dev containers (plugin):
+- Aprire la command palette (Ctrl + Shift + P)
+- Sceglire l'opzione "Dev Containers: Reopen in Container"
+Questo farà la build (se necessario), il mount del volume condiviso e avvierà il docker da solo
+
+Per chi non ha questa configurazione oppure vuole avviare il docker con profilo diverso:
 Build di due tipi:
     # CPU
     docker build --build-arg PYTORCH_CHANNEL=cpu -t gadpmsa:cpu .
@@ -7,9 +12,9 @@ Build di due tipi:
 
 Aprire una shell:
     # CPU
-    docker run --rm -it -v "$PWD:/app" -w /app gadpmsa:cpu bash
+    docker run --rm -it -v "$PWD:/workspaces/GA-DPAMSA" -w /workspaces/GA-DPAMSA gadpmsa:cpu bash
     # GPU
-    docker run --rm -it --gpus all -v "$PWD:/app" -w /app gadpmsa:gpu bash
+    docker run --rm -it --gpus all -v "$PWD:/workspaces/GA-DPAMSA" -w /workspaces/GA-DPAMSA gadpmsa:gpu bash
 
 Note:
 - La configurazione per gpu richiede che venga decommentata la sezione relativa nel docker-compose.yml

@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils bzip2 python3-tk nano \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /workspaces
 
 # Copia solo i requirements per sfruttare la cache
 COPY requirements.txt ./requirements.txt
@@ -38,7 +38,7 @@ RUN if [ "$PYTORCH_CHANNEL" = "cpu" ]; then \
     fi
 
 # Cartella per output (montabile come volume)
-RUN mkdir -p /app/result
+RUN mkdir -p /workspaces/results
 
 # Test veloce ambiente
 RUN python - <<'PY'
@@ -106,9 +106,6 @@ RUN set -euo pipefail && \
     which muscle5 && muscle5 -h | head -n 1 && \
     rm -rf "$TMPD"
 
-
-# Copia il resto del progetto
-COPY . .
 
 # Default: shell
 CMD ["bash"]

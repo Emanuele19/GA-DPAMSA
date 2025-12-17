@@ -1,6 +1,5 @@
 # /results
-/DPAMSA/runs
-
+results/*
 .idea/
 
 # Byte-compiled / optimized / DLL files
