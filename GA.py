@@ -175,7 +175,11 @@ class GA:
             if self.mode == 'mo':
                 self.population_score.append((index_chromosome, sp_score, cs_score))
             else:
-                self.population_score.append((index_chromosome, sp_score or cs_score))
+
+                self.population_score.append((
+                    index_chromosome,
+                    sp_score if self.mode == 'sp' else cs_score
+                ))
 
         # Update the Hall of Fame after computing the fitness scores.
         self.update_hall_of_fame()
