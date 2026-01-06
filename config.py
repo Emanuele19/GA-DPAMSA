@@ -1,6 +1,7 @@
 import math
 import os
 import torch
+import random
 
 """
 Configuration File
@@ -32,6 +33,12 @@ DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Numbe
 UPDATE_ITERATION = 128  # Number of iterations before updating the target network
 DEVICE_NAME = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
 DEVICE = 'cpu'  # Default computation device
+
+# ===========================
+# Random Seed Configuration
+# ==========================
+SEED = 42  
+rng = random.Random(SEED)
 
 # ===========================
 # Genetic Algorithm (GA) Parameters
