@@ -1,6 +1,5 @@
 import os, re
 from typing import Iterator, Union
-from utils import parse_fasta_to_sequences
 
 class FastaContent:
     """
@@ -22,6 +21,7 @@ class FastaContent:
         with open(path, 'r') as file:
             content = file.read()
 
+        from utils import parse_fasta_to_sequences
         return parse_fasta_to_sequences(content)
     
     def __init__(self, path: str):
