@@ -5,6 +5,10 @@
 results/*
 .idea/
 
+# model training diagnostic
+DPAMSA/runs
+DPAMSA/weights
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
