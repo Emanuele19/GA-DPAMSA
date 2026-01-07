@@ -455,7 +455,7 @@ def get_nucleotides_seqs(chromosome):
         ['ATC-', 'GCAT']
     """
     # Define the nucleotide mapping for integer values
-    nucleotides = ['A', 'T', 'C', 'G', '-']
+    nucleotides = ['A', 'T', 'C', 'G', '-', 'N']
 
     # Initialize a list to store the converted nucleotide sequences
     nucleotides_seqs = []
@@ -664,9 +664,18 @@ def run_tool_and_generate_report(tool_name, file_paths, dataset_name):
             else:
                 fasta_content = subprocess.run(command, stdout=subprocess.PIPE, text=True).stdout
 
+            if not fasta_content.strip():
+              print(f"[WARN] Empty output from {tool_name} for the file {file_name}.")
+              continue
+          
             # Parse FASTA content to get aligned sequences
             aligned_seqs = parse_fasta_to_sequences(fasta_content)
 
+            if not aligned_seqs:
+              print(f"[WARN] parse_fasta_to_sequences could not find any sequence for {file_name} "
+                    f"(tool={tool_name}). Check output format.")
+              continue
+                
             # Compute alignment metrics using Environment
             env = Environment(aligned_seqs, convert_data=False)
             Environment.set_alignment(env, aligned_seqs)

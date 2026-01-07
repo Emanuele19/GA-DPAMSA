@@ -32,7 +32,7 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 # Map nucleotide characters to numerical values (gaps are represented by 5)
-nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5}
+nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5,'N':6, 'n':6}
 
 
 class GA:

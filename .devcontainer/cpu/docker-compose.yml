@@ -1,0 +1,13 @@
+services:
+  gadpamsa:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        PYTORCH_CHANNEL: "cpu"
+    image: gadpamsa:cpu
+    volumes:
+      - ../..:/workspaces/GA-DPAMSA
+    working_dir: /workspaces/GA-DPAMSA
+    tty: true
+    stdin_open: true

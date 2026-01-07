@@ -1,6 +1,7 @@
 import math
 import os
 import torch
+import random
 
 """
 Configuration File
@@ -34,10 +35,16 @@ DEVICE_NAME = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GP
 DEVICE = 'cpu'  # Default computation device
 
 # ===========================
+# Random Seed Configuration
+# ==========================
+SEED = 42  
+rng = random.Random(SEED)
+
+# ===========================
 # Genetic Algorithm (GA) Parameters
 # ===========================
 AGENT_WINDOW_ROW = 3  # Number of rows in the agent's observation window
-AGENT_WINDOW_COLUMN = 30  # Number of columns in the observation window
+AGENT_WINDOW_COLUMN = 30 # Number of columns in the observation window
 GA_ITERATIONS = 3  # Number of iterations for genetic evolution
 POPULATION_SIZE = 5  # Population size for genetic algorithm
 CLONE_RATE = 0.25  # % of the population to be an exact copy of the input sequences during Population Generation Phase

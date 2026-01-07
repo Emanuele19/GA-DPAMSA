@@ -1,6 +1,13 @@
+# vscode
+.vscode
+
 # /results
 results/*
 .idea/
+
+# model training diagnostic
+DPAMSA/runs
+DPAMSA/weights
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -176,3 +183,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+datasets/fasta_files/orthodb_v12
+datasets/orthodb_preparation/dumps
+datasets/orthodb_preparation/global_base_probs.json
+datasets/orthodb_preparation/ogs.txt
+

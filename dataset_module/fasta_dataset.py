@@ -1,6 +1,5 @@
 import os, re
 from typing import Iterator, Union
-from utils import parse_fasta_to_sequences
 
 class FastaContent:
     """
@@ -22,6 +21,7 @@ class FastaContent:
         with open(path, 'r') as file:
             content = file.read()
 
+        from utils import parse_fasta_to_sequences
         return parse_fasta_to_sequences(content)
     
     def __init__(self, path: str):
@@ -59,7 +59,7 @@ class FastaDataset:
         return int(match.group(1)) if match else -1
 
 
-    def __init__(self, path: str, prefix: str = "test"):
+    def __init__(self, path: str, prefix: str = ""):
         self.__path = path
         self.__prefix = prefix
         self.__name = os.path.basename(path)

@@ -27,8 +27,15 @@ Author: https://github.com/ZhangLab312/DPAMSA
 colors = ["#FFFFFF", "#5CB85C", "#5BC0DE", "#F0AD4E", "#D9534F", "#808080"]
 
 # Mapping of nucleotides to numerical values
-nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5}
-nucleotides = ['A', 'T', 'C', 'G', '-']
+nucleotides_map = {
+    'A': 1, 'a': 1,
+    'T': 2, 't': 2,
+    'C': 3, 'c': 3,
+    'G': 4, 'g': 4,
+    '-': 5,
+    'N': 6, 'n': 6,
+}
+nucleotides = ['A', 'T', 'C', 'G', '-', 'N']
 
 
 class Environment:
