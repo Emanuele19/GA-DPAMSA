@@ -37,8 +37,8 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 
-TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'zhang_dataset_3x30'))
-INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_4x101bp'))
+TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp'))
+INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_6x60bp'))
 INFERENCE_MODEL = 'model_3x30'
 
 
@@ -129,7 +129,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
     datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
     for index, fasta in enumerate(datasets_to_process, start):
 
-        seqs = getattr(dataset, fasta.sequences)
+        seqs = fasta.sequences
 
         # Initialize environment and DQN agent
         env = Environment(seqs)
@@ -317,8 +317,8 @@ def menu():
     while True:
         print("\n====== DPAMSA MENU ======")
         output_parameters()
-        print(f"Dataset loaded for Training: {TRAINING_DATASET.file_name}")
-        print(f"Dataset loaded for Inference: {INFERENCE_DATASET.file_name}\n\n")
+        print(f"Dataset loaded for Training: {TRAINING_DATASET.name}")
+        print(f"Dataset loaded for Inference: {INFERENCE_DATASET.name}\n\n")
         print("1 - Train the model")
         print("2 - Run inference")
         print("3 - Exit\n")
