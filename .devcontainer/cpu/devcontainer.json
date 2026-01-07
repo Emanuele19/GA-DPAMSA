@@ -1,0 +1,15 @@
+// .devcontainer/cpu/devcontainer.json
+{
+  "name": "GA-DPAMSA (CPU)",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "gadpamsa",
+  "workspaceFolder": "/workspaces/GA-DPAMSA",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+      ]
+    }
+  }
+}
