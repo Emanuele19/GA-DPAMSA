@@ -37,7 +37,7 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 
-TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp'))
+TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/unique_no_ambig_imp_cut'))
 INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_6x60bp'))
 INFERENCE_MODEL = 'model_3x30'
 

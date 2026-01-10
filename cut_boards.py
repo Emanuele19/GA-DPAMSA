@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from dataset_module.data_utils import write_fasta, WRAP_DEFAULT
 from dataset_module.transforms import Compose, LeftGapPad, RandomGapInsertion
 from dataset_module.transforms import RandomCutSequence, ResolveAmbiguities 
-from dataset_module.transforms import RemoveDuplicates, ReportDuplicates, BasicCompose
+from dataset_module.transforms import RemoveDuplicates, BasicCompose
 from dataset_module import FastaWindowDataset
 
 def main():
@@ -16,8 +16,8 @@ def main():
     
     MAX_BOARDS = 1000
 
-    basic_preparation = Compose([
-        ResolveAmbiguities(RAW_DIR, ),
+    basic_preparation = BasicCompose([
+        ResolveAmbiguities(),
         RemoveDuplicates(),
         RandomCutSequence(k=300, h=100)
     ])
