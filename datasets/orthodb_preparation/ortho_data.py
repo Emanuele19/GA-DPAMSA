@@ -9,9 +9,13 @@ from dataset_module.data_utils import *
 
 BASE = "https://data.orthodb.org/v12/download/odb_data_dump"
 API = "https://data.orthodb.org/v12/fasta"
-DATASET_ROOT= Path("../fasta_files")
 
-OUT = Path("dumps")
+SCRIPT_DIR = Path(__file__).resolve().parent
+OUT = SCRIPT_DIR / "dumps"
+
+DATASET_ROOT = SCRIPT_DIR / "../fasta_files"
+DATASET_ROOT = DATASET_ROOT.resolve()
+
 raw_dir = DATASET_ROOT / "orthodb_v12/raw"; raw_dir.mkdir(parents=True, exist_ok=True)
 
 # if not none, max number of files downloaded
@@ -20,9 +24,6 @@ max_download_count = 500
 CLADE = "Mammalia"  # Vertebrate/Mammalia/Eukaryota/…
 
 OGS_CACHE = Path("ogs.txt")
-
-
-
 
 
 def download_files():
