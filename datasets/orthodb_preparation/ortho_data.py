@@ -8,17 +8,22 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 from dataset_module.data_utils import *
 
 BASE = "https://data.orthodb.org/v12/download/odb_data_dump"
-
-DATASET_ROOT= Path("../fasta_files")
-OUT = Path("dumps")
-
-CLADE = "Mammalia"  # Vertebrate/Mammalia/Eukaryota/…
-
 API = "https://data.orthodb.org/v12/fasta"
+DATASET_ROOT= Path("../fasta_files")
+
+OUT = Path("dumps")
 raw_dir = DATASET_ROOT / "orthodb_v12/raw"; raw_dir.mkdir(parents=True, exist_ok=True)
 
 # if not none, max number of files downloaded
 max_download_count = 500
+
+CLADE = "Mammalia"  # Vertebrate/Mammalia/Eukaryota/…
+
+OGS_CACHE = Path("ogs.txt")
+
+
+
+
 
 def download_files():
     OUT.mkdir(parents=True, exist_ok=True)
@@ -74,11 +79,27 @@ def download_cds_for_og(og_id):
     r.raise_for_status()
     (raw_dir/f"{og_id}.cds.fasta").write_text(r.text, encoding="utf-8")
 
+def load_or_compute_ogs():
+    if OGS_CACHE.exists() and OGS_CACHE.stat().st_size > 0:
+        print(f"Using cached OG list: {OGS_CACHE}")
+        return [
+            line.strip()
+            for line in OGS_CACHE.read_text().splitlines()
+            if line.strip()
+        ]
+
+    print("ogs.txt not found → computing OG list from OrthoDB dumps")
+    ogs = get_ogs_for_clade()
+
+    OGS_CACHE.write_text("\n".join(ogs))
+    print(f"Cached {len(ogs)} OGs to {OGS_CACHE}")
+
+    return ogs
 
 def download_all_fastas():
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    ogs = get_ogs_for_clade()
+    ogs = load_or_compute_ogs()
     total_iter = min(max_download_count, len(ogs)) if max_download_count else len(ogs)
 
     for i, og in enumerate(tqdm(ogs[:total_iter], total=min(total_iter, max_download_count), desc="Scarico OG", unit="og", file=sys.stdout), 1):
