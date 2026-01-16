@@ -28,10 +28,10 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 DATASET_NAME = 'dataset1_3x30bp'
 
 # Ensure DPAMSA model matches dataset size
-DPAMSA_MODEL = 'model_3x30'
+DPAMSA_MODEL = 'new_model_3x30'
 
 # Ensure GA-DPAMSA model matches 'AGENT_WINDOW_ROW' and 'AGENT_WINDOW_COLUMN' settings
-GA_DPAMSA_MODEL = 'model_3x30'
+GA_DPAMSA_MODEL = 'new_model_3x30'
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 

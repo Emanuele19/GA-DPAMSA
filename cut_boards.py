@@ -14,7 +14,7 @@ def main():
     PREPARED_DIR = DATASET_ROOT / "orthodb_v12" / "unique_no_ambig_imp_cut"
     OUTPUT_DIR = DATASET_ROOT / "orthodb_v12" / "cut_boards"
     
-    MAX_BOARDS = 1000
+    MAX_BOARDS = 100
 
     basic_preparation = BasicCompose([
         ResolveAmbiguities(),

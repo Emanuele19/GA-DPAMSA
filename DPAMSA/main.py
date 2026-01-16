@@ -169,7 +169,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
         # Early Stopping Parameters
         best_avg_reward = -float('inf')  # Best moving average reward observed
         no_improve_count = 0             # Count of episodes without improvement
-        early_stopping_patience = 200    # Threshold for stopping training
+        early_stopping_patience = 100   # Threshold for stopping training
         reward_history = []              # Store recent rewards for analysis
 
         # Create a single tqdm progress bar

@@ -70,7 +70,7 @@ def inference(
         mode, 
         dataset:FastaDataset=DATASET, 
         start=0, end=-1, 
-        model_path='model_3x30', 
+        model_path='new_model_3x30', 
         debug=False, 
         truncate_file=True):
     """
@@ -165,5 +165,5 @@ if __name__ == "__main__":
        - 'cs'  -> Column Score mode
        - 'mo'  -> Multi-Objective mode
     """
-    default_dataset = FastaDataset()
-    inference(mode=GA_MODE, dataset=DATASET, model_path=INFERENCE_MODEL, debug=DEBUG_MODE)
+    default_dataset = FastaDataset(DATASET)
+    inference(mode=GA_MODE, dataset=default_dataset, model_path=INFERENCE_MODEL, debug=DEBUG_MODE)
