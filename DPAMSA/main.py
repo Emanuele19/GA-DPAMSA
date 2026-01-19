@@ -38,8 +38,8 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 
 
 TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/cut_boards'))
-INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_6x60bp'))
-INFERENCE_MODEL = 'model_3x30'
+INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp'))
+INFERENCE_MODEL = 'new_model_3x30'
 
 
 def output_parameters():
@@ -295,7 +295,9 @@ def inference(dataset: FastaDataset, start=0, end=-1, model_path=INFERENCE_MODEL
         state = env.reset()
 
         while True:
-            action = agent.predict(state)
+            # Calcola le lunghezze dei segmenti correnti nello stato per la visualizzazione
+            seq_lens = [len(env.not_aligned[i]) + 1 for i in range(env.row)]
+            action = agent.predict(state, seq_lens=seq_lens)
             _, next_state, done = env.step(action)
             state = next_state
             if 0 == done:
@@ -355,7 +357,7 @@ def menu():
             confirm = input("Do you want to proceed with inference? (yes/no): ").strip().lower()
             if confirm == "yes":
                 print("\nStarting inference...")
-                inference()
+                inference(INFERENCE_DATASET)
             else:
                 print("\nInference canceled.")
 

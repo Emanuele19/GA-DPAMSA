@@ -246,4 +246,4 @@ class Encoder(nn.Module):
         enc_output = self.layer_norm(enc_output)
         enc_output, enc_slf_attn = self.self_attention(enc_output, enc_output, enc_output, mask=mask)
 
-        return enc_output
+        return enc_output, enc_slf_attn

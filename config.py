@@ -33,6 +33,7 @@ DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Numbe
 UPDATE_ITERATION = 128  # Number of iterations before updating the target network
 DEVICE_NAME = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
 DEVICE = 'cpu'  # Default computation device
+PLOT_ATTENTION = False # Whether to plot attention heatmaps during inference
 
 # ===========================
 # Random Seed Configuration

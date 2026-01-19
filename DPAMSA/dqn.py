@@ -2,8 +2,11 @@ from abc import ABC
 import numpy as np
 import os
 import random
+import time
 import torch
 import torch.nn as nn
+import json
+import matplotlib.pyplot as plt
 
 import config
 from DPAMSA.models import Encoder
@@ -68,7 +71,8 @@ class Net(nn.Module):
 
     def forward(self, x):
         """Forward pass through the network."""
-        x = self.encoder(x, self.mask(x, 0))
+        x, attn = self.encoder(x, self.mask(x, 0))
+        self.last_attention = attn
         # x = self.dropout(x)
         x = x.view(x.size()[0], -1)
         x = self.f1(self.l1(x))
@@ -148,9 +152,112 @@ class DQN(ABC):
 
         return action
 
-    def predict(self, state):
+    def predict(self, state, seq_lens=None):
         """Predict the best action given a state."""
         action_val = self.eval_net.forward(torch.LongTensor(state).unsqueeze_(0).to(config.DEVICE))
+
+        # --- Interactive Attention Plot (HTML) ---
+        if config.PLOT_ATTENTION:
+            try:
+                # Recupera la matrice di attenzione: shape (seq_len, seq_len)
+                attn = self.eval_net.last_attention.detach().cpu().numpy()[0, 0]
+                
+                # Determina la lunghezza valida
+                if seq_lens:
+                    valid_len = sum(seq_lens)
+                else:
+                    # Fallback se seq_lens non è fornito
+                    valid_len = len(state)
+                    for i in range(len(state) - 1, -1, -1):
+                        if state[i] != 0:
+                            valid_len = i + 1
+                            break
+                
+                # Taglia i dati alla parte valida
+                attn = attn[:valid_len, :valid_len]
+                seq_ints = state[:valid_len]
+                
+                # Mappa interi -> nucleotidi (0=Pad, 1=A, 2=T, 3=C, 4=G, 5=-, 6=N)
+                vocab = ['P', 'A', 'T', 'C', 'G', '-', 'N']
+                labels = [vocab[i] if 0 <= i < len(vocab) else '?' for i in seq_ints]
+                
+                # Prepara i dati per l'HTML
+                # Ricostruisce la struttura a righe basandosi su seq_lens
+                rows_html = ""
+                current_idx = 0
+                
+                # Se seq_lens non c'è, trattiamo tutto come un'unica riga
+                iter_lens = seq_lens if seq_lens else [valid_len]
+                
+                for length in iter_lens:
+                    rows_html += '<div class="seq-row">'
+                    for _ in range(length):
+                        char = labels[current_idx]
+                        # data-idx è l'indice globale nella matrice di attenzione
+                        rows_html += f'<span class="nuc" data-idx="{current_idx}">{char}</span>'
+                        current_idx += 1
+                    rows_html += '</div>'
+
+                # Serializza la matrice di attenzione per JS
+                # Arrotondiamo per risparmiare spazio
+                attn_json = json.dumps(np.round(attn, 4).tolist())
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: monospace; background: #f0f0f0; padding: 20px; }}
+                        .seq-row {{ display: flex; margin-bottom: 5px; }}
+                        .nuc {{ 
+                            width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+                            border: 1px solid #ccc; background: white; cursor: crosshair; margin-right: 1px;
+                            font-weight: bold;
+                        }}
+                        .nuc:hover {{ border-color: #000; }}
+                    </style>
+                </head>
+                <body>
+                    <h3>Interactive Attention Map (Hover over a nucleotide)</h3>
+                    <div id="grid">{rows_html}</div>
+                    <script>
+                        const attn = {attn_json};
+                        const cells = document.querySelectorAll('.nuc');
+                        
+                        cells.forEach(cell => {{
+                            cell.addEventListener('mouseenter', (e) => {{
+                                const idx = parseInt(e.target.dataset.idx);
+                                const rowAttn = attn[idx];
+                                
+                                // Colora tutte le celle in base all'attenzione ricevuta dalla cella corrente
+                                cells.forEach((c, i) => {{
+                                    const val = rowAttn[i];
+                                    // Mappa valore 0-1 a colore (Bianco -> Rosso)
+                                    const intensity = Math.min(1, val * 5); // Moltiplico per evidenziare valori bassi
+                                    c.style.backgroundColor = `rgba(255, 0, 0, ${{intensity}})`;
+                                    c.style.color = intensity > 0.5 ? 'white' : 'black';
+                                }});
+                            }});
+                            
+                            // Reset opzionale quando si esce dalla griglia
+                            document.getElementById('grid').addEventListener('mouseleave', () => {{
+                                cells.forEach(c => {{ c.style.backgroundColor = 'white'; c.style.color = 'black'; }});
+                            }});
+                        }});
+                    </script>
+                </body>
+                </html>
+                """
+
+                save_dir = os.path.join(config.BASE_RESULTS_PATH, "attention_plots")
+                os.makedirs(save_dir, exist_ok=True)
+                with open(os.path.join(save_dir, f"attn_{time.time()}.html"), "w") as f:
+                    f.write(html_content)
+                    
+            except Exception as e:
+                print(f"Warning: Could not plot attention heatmap. Error: {e}")
+        # ------------------------------
+
         return torch.argmax(action_val, 1).cpu().data.numpy()[0]
 
     def update(self):
