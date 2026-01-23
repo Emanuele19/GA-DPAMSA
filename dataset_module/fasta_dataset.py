@@ -1,110 +1,111 @@
 import os, re
-from typing import Iterator, Union
+import torch
+from typing import Iterator, Union, Optional
+from .encoding import SequenceEncoder
 
 class FastaContent:
     """
-    This object represents a fasta's file content.
-    A .fasta file has the following format:
-    
-    >seq1
-    ATCGGCTA
-    >seq2
-    TTAGCCCTA
-
-    In the `sequences` property the content is encoded
-    as a list of the sequences (strings) like:
-    ['ATCGGCTA', 'TTAGCCCTA']
-
+    Represents the content of a .fasta file.
     """
-    @staticmethod
-    def __parse_fasta_file(path: str):
-        with open(path, 'r') as file:
-            content = file.read()
-
-        from utils import parse_fasta_to_sequences
-        return parse_fasta_to_sequences(content)
-    
-    def __init__(self, path: str):
+    def __init__(self, path: str, encoder: SequenceEncoder):
         self.__path = path
-        self.__sequences: list[str] = self.__parse_fasta_file(path)
-
-    @property
-    def path(self) -> str:
-        return self.__path
-
-    @property
-    def sequences(self) -> list[str]:
-        return self.__sequences
-    
-    @property
-    def name(self) -> str:
-        return os.path.basename(self.__path)
-
-class FastaDataset:
-    """
-    This object represents a folder of .fasta files.
-    Every file is represented by a `FastaContent` instance.
-    It is possible to iterate over this object and to slice it.
-    Note: this object does not contain sequences, it contains
-    a list of `FastaContent`.
-    """
-
-    @staticmethod
-    def __extract_number(filename: str, prefix: str) -> int:
-        """
-        Estrae la prima sequenza numerica dopo il prefix.
-        Es: 'test12.fasta' → 12
-        """
-        match = re.search(rf"{re.escape(prefix)}(\d+)", filename)
-        return int(match.group(1)) if match else -1
-
-
-    def __init__(self, path: str, prefix: str = ""):
-        self.__path = path
-        self.__prefix = prefix
+        self.__encoder = encoder
+        self.__sequences: Optional[list[str]] = None
+        self.__tensor: Optional[torch.Tensor] = None
         self.__name = os.path.basename(path)
 
-        self.__fasta_paths = [
-            os.path.join(self.__path, f)
-            for f in os.listdir(self.__path)
-            if f.startswith(self.__prefix) and f.endswith(".fasta")
-        ]
+    def __ensure_loaded(self):
+        if self.__sequences is None:
+            from utils import parse_fasta_to_sequences
+            with open(self.__path, 'r') as file:
+                self.__sequences = parse_fasta_to_sequences(file.read())
+            # Usa l'encoder iniettato per generare il tensore
+            self.__tensor = self.__encoder.encode(self.__sequences)
 
-        # Ordina usando il numero dopo il prefisso
-        self.__fasta_paths.sort(
-            key=lambda f: self.__extract_number(os.path.basename(f), self.__prefix))
+    @property
+    def tensor(self) -> torch.Tensor:
+        self.__ensure_loaded()
+        return self.__tensor
 
+    @property
+    def num_sequences(self) -> int:
+        self.__ensure_loaded()
+        return len(self.__sequences)
 
-    def __iter__(self) -> Iterator[FastaContent]:
-        for fasta_path in self.__fasta_paths:
-            yield FastaContent(fasta_path)
-
-    def __getitem__(self, index: Union[int, slice]) -> Union[FastaContent, list[FastaContent]]:
-        if isinstance(index, int):
-            if index < 0:
-                index += len(self.__fasta_paths)
-            if index < 0 or index >= len(self.__fasta_paths):
-                raise IndexError("Index out of range")
-            return FastaContent(self.__fasta_paths[index])
-        
-        elif isinstance(index, slice):
-            sliced_paths = self.__fasta_paths[index]
-            return [FastaContent(path) for path in sliced_paths]
-
-        else:
-            raise TypeError("Invalid argument type")
-
-    def __len__(self) -> int:
-        return len(self.__fasta_paths)
+    @property
+    def sequence_length(self) -> int:
+        self.__ensure_loaded()
+        return len(self.__sequences[0]) if self.__sequences else 0
 
     @property
     def name(self) -> str:
         return self.__name
 
-    @property
-    def path(self) -> str:
-        return self.__path
 
-    @property
-    def fasta_files(self) -> list[str]:
-        return self.__fasta_paths
+import os, re
+import torch
+from torch.utils.data import Dataset, DataLoader
+from typing import Iterator, Optional
+
+# Questa rimane la classe base per il singolo elemento
+class _FastaItem(Dataset):
+    def __init__(self, paths: list[str], encoder):
+        self.paths = paths
+        self.encoder = encoder
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, i):
+        # Carica e codifica il singolo file
+        return FastaContent(self.paths[i], self.encoder)
+
+class FastaDataset:
+    def __init__(self, folder_path: str, encoder, num_workers: int = 4, prefetch_factor: int = 10):
+        self.__path = folder_path
+        self.__encoder = encoder
+        self.__num_workers = num_workers
+        self.__prefetch_factor = prefetch_factor
+        
+        # 1. Recupero e ordinamento path
+        self.__fasta_paths = sorted([
+            os.path.join(self.__path, f) for f in os.listdir(self.__path) 
+            if f.endswith(".fasta")
+        ], key=self.__natural_sort_key)
+
+        # 2. Inizializzazione dell'oggetto Dataset interno
+        self.__internal_ds = _FastaItem(self.__fasta_paths, self.__encoder)
+
+    def __natural_sort_key(self, path: str):
+        match = re.search(r"(\d+)", os.path.basename(path))
+        return int(match.group(1)) if match else path
+
+    def __len__(self) -> int:
+        return len(self.__fasta_paths)
+
+    def __iter__(self) -> Iterator[FastaContent]:
+        """
+        Crea un DataLoader temporaneo per l'iterazione.
+        Grazie a num_workers > 0, i file vengono caricati in background.
+        """
+        loader = DataLoader(
+            self.__internal_ds,
+            batch_size=1,
+            num_workers=self.__num_workers,
+            prefetch_factor=self.__prefetch_factor,
+            shuffle=False,
+            # Necessario per restituire oggetti complessi come FastaContent
+            collate_fn=lambda x: x[0] 
+        )
+        for fasta in loader:
+            yield fasta
+
+    def __getitem__(self, index: int) -> FastaContent:
+        """
+        Accesso diretto per indice. 
+        Nota: Questo bypassa il prefetching (accesso sincrono).
+        """
+        if isinstance(index, slice):
+            raise NotImplementedError("Slicing is not supported for this dataset.")
+        
+        return self.__internal_ds[index]
