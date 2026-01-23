@@ -4,15 +4,25 @@ from torch.utils.data import DataLoader
 
 from dataset_module.data_utils import write_fasta, WRAP_DEFAULT
 from dataset_module.transforms import Compose, LeftGapPad, RandomGapInsertion
+from dataset_module.transforms import RandomCutSequence, ResolveAmbiguities 
+from dataset_module.transforms import RemoveDuplicates, BasicCompose
 from dataset_module import FastaWindowDataset
 
 def main():
     DATASET_ROOT = Path("datasets/fasta_files")
-    INPUT_DIR = DATASET_ROOT / "orthodb_v12" / "unique_no_ambig_imp_cut"
+    RAW_DIR = DATASET_ROOT / "orthodb_v12" / "raw"
+    PREPARED_DIR = DATASET_ROOT / "orthodb_v12" / "unique_no_ambig_imp_cut"
     OUTPUT_DIR = DATASET_ROOT / "orthodb_v12" / "cut_boards"
     
-    MAX_BOARDS = 1000
+    MAX_BOARDS = 100
 
+    basic_preparation = BasicCompose([
+        ResolveAmbiguities(),
+        RemoveDuplicates(),
+        RandomCutSequence(k=300, h=100)
+    ])
+
+    basic_preparation(RAW_DIR, PREPARED_DIR)
     # 1. Define Transforms
     augmentation = Compose([
         LeftGapPad(max_shift=5, gap="-"),
@@ -21,7 +31,7 @@ def main():
 
     # 2. Instantiate Dataset
     dataset = FastaWindowDataset(
-        input_dir=INPUT_DIR,
+        input_dir=PREPARED_DIR,
         transform=augmentation,
         max_seqs_per_block=3,
         window_len=30,

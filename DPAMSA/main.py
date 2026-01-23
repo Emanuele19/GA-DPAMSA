@@ -2,12 +2,12 @@ import csv
 import os
 import subprocess
 import time
-
+import sys
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import webbrowser
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 import config
 from DPAMSA.dqn import DQN
 from DPAMSA.env import Environment
@@ -37,7 +37,7 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 
-TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp'))
+TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/cut_boards'))
 INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_6x60bp'))
 INFERENCE_MODEL = 'model_3x30'
 
@@ -93,6 +93,40 @@ def open_tensorboard(log_dir):
         print(f"⚠️ Error starting TensorBoard: {e}")
         return None
 
+def make_writer(fasta_name, log_dir):
+    """
+    Create a SummaryWriter for TensorBoard logging.
+
+    Parameters:
+    -----------
+    - fasta_name (str): Name of the fasta dataset.
+    - log_dir (str): Directory to store TensorBoard logs.
+
+    Returns:
+    --------
+    - SummaryWriter: The TensorBoard SummaryWriter instance.
+    """
+    writer = SummaryWriter(os.path.join(log_dir, fasta_name))
+
+    # Write an initial log entry so TensorBoard detects the logs immediately
+    writer.add_scalar('Training/Loss', 0, 0)
+    writer.add_scalar('Training/Reward', 0, 0)
+    writer.add_scalar('Training/Steps', 0, 0)
+    writer.add_scalar('Training/Epsilon', config.EPSILON, 0)
+    writer.add_scalar('Metrics/SP', 0, 0)
+    writer.add_scalar('Metrics/CS', 0, 0)
+    writer.flush()  # Force immediate write to disk
+
+    return writer
+
+def update_writer(name, writers, episode, episode_loss, episode_reward, steps, sp_score, column_score, epsilon):
+    writers[name].add_scalar('Training/Loss', episode_loss, episode)
+    writers[name].add_scalar('Training/Reward', episode_reward, episode)
+    writers[name].add_scalar('Training/Steps', steps, episode)
+    writers[name].add_scalar('Training/Epsilon', epsilon, episode)
+    writers[name].add_scalar('Metrics/SP', sp_score, episode)
+    writers[name].add_scalar('Metrics/CS', column_score, episode)
+
 
 def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'):
     """
@@ -110,24 +144,15 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
     # Create SummaryWriter instances for each dataset
     writers = {}
     log_dir = os.path.join(config.RUNS_PATH, dataset.name)
-    for fasta in dataset:
-        writers[fasta.name] = SummaryWriter(os.path.join(log_dir, fasta.name))
-
-        # Write an initial log entry so TensorBoard detects the logs immediately
-        writers[fasta.name].add_scalar('Training/Loss', 0, 0)
-        writers[fasta.name].add_scalar('Training/Reward', 0, 0)
-        writers[fasta.name].add_scalar('Training/Steps', 0, 0)
-        writers[fasta.name].add_scalar('Training/Epsilon', config.EPSILON, 0)
-        writers[fasta.name].add_scalar('Metrics/SP', 0, 0)
-        writers[fasta.name].add_scalar('Metrics/CS', 0, 0)
-        writers[fasta.name].flush()  # Force immediate write to disk
-
     # Automatically launch TensorBoard
     _ = open_tensorboard(log_dir)
+  
 
     # Get the subset of datasets to process
     datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
     for index, fasta in enumerate(datasets_to_process, start):
+
+        writers[fasta.name] = make_writer(fasta.name, log_dir)
 
         seqs = fasta.sequences
 
@@ -144,7 +169,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
         # Early Stopping Parameters
         best_avg_reward = -float('inf')  # Best moving average reward observed
         no_improve_count = 0             # Count of episodes without improvement
-        early_stopping_patience = 200    # Threshold for stopping training
+        early_stopping_patience = 100   # Threshold for stopping training
         reward_history = []              # Store recent rewards for analysis
 
         # Create a single tqdm progress bar
@@ -200,12 +225,10 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
 
             # TensorBoard Logging
             name = fasta.name
-            writers[name].add_scalar('Training/Loss', episode_loss, episode)
-            writers[name].add_scalar('Training/Reward', episode_reward, episode)
-            writers[name].add_scalar('Training/Steps', steps, episode)
-            writers[name].add_scalar('Training/Epsilon', agent.current_epsilon, episode)
-            writers[name].add_scalar('Metrics/SP', sp_score, episode)
-            writers[name].add_scalar('Metrics/CS', column_score, episode)
+            update_writer(name, writers, episode, episode_loss, episode_reward, steps, sp_score, column_score, agent.current_epsilon)
+
+            # Close TensorBoard writer for the dataset
+            writers[name].close()
 
             # Early Stopping: Check reward improvement over last 100 episodes
             reward_history.append(episode_reward)
@@ -226,9 +249,6 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
 
         # Close progress bar after training on dataset
         pbar.close()
-
-        # Close TensorBoard writer for the dataset
-        writers[name].close()
 
         # Save the trained model
         agent.save(model_path)

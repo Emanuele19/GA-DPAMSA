@@ -11,3 +11,8 @@ services:
     working_dir: /workspaces/GA-DPAMSA
     tty: true
     stdin_open: true
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
