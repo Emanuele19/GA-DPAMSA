@@ -26,13 +26,12 @@ MAX_EPISODE = 6000  # Maximum number of training episodes
 BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 0.0001  # Learning rate for the optimizer
-EPSILON = 0.8  # Initial epsilon value for ε-greedy policy
-GAMMA = 1  # Discount factor for Q-learning
+EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
+GAMMA = 0.99  # Discount factor for Q-learning
 DELTA = 0.05  # Epsilon decrement step size
 DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Number of steps to decay epsilon
 UPDATE_ITERATION = 128  # Number of iterations before updating the target network
 DEVICE_NAME = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
-DEVICE = 'cpu'  # Default computation device
 
 # ===========================
 # Random Seed Configuration
