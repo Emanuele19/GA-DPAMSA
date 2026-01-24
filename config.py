@@ -81,6 +81,7 @@ INFERENCE_DATASET_PATH = os.path.join(BASE_DATASETS_PATH, "inference_dataset")
 
 # Model Weights Path
 DPAMSA_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "weights")
+MODEL_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights') # For new models
 
 # Tensorboard Training Runs Path
 RUNS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "runs")
