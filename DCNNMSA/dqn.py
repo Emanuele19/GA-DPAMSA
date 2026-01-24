@@ -77,7 +77,7 @@ class DQNAgent:
         """Sincronizza i pesi della Target Network con la Policy Network."""
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    def save(self, filename: str, path:str = config.DPAMSA_WEIGHTS_PATH) -> None:
+    def save(self, filename: str, path:str = config.MODEL_WEIGHTS_PATH) -> None:
         """
         Save the model weights to a file.
 
