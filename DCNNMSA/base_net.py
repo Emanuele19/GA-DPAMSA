@@ -22,6 +22,7 @@ class MSANet(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, self.n_actions)
 
     def forward(self, x):
+        x = x.long() # x is stored as tensor of uint8, but Net wants tensor of Long
         # x shape: (Batch, N, 30)
         
         # Embedding -> (Batch, N, 30, Emb) -> Permute to (Batch, Emb, N, 30)

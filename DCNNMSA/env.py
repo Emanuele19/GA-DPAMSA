@@ -4,7 +4,11 @@ from typing import Tuple, List
 import config
 
 class Environment:
-    def __init__(self, input_tensor: torch.Tensor, fixed_size: int = 30, gap_idx: int = 4, pad_idx: int = 5):
+    def __init__(self, input_tensor: torch.Tensor | np.ndarray, fixed_size: int = 30, gap_idx: int = 4, pad_idx: int = 5):
+        
+        if isinstance(input_tensor, np.ndarray):
+            input_tensor = torch.from_numpy(input_tensor)
+        
         self.N, self.L = input_tensor.shape
         self.fixed_size = fixed_size
         self.gap_idx = gap_idx
@@ -102,3 +106,35 @@ class Environment:
                 else:
                     score += config.MISMATCH_PENALTY
         return score
+    
+    def calculate_total_cs(self) -> float:
+        """
+        Calcola il Column Score totale dell'allineamento prodotto.
+        Ritorna la somma delle colonne perfettamente conservate.
+        """
+        if not self.history:
+            return 0.0
+
+        perfect_columns = 0
+        
+        for column in self.history:
+            # 1. Ignoriamo colonne che contengono padding (fine sequenza)
+            if self.pad_idx in column:
+                continue
+                
+            # 2. Ignoriamo colonne che contengono gap (non sono conservate per definizione)
+            if self.gap_idx in column:
+                continue
+                
+            # 3. Verifichiamo se tutti gli elementi sono uguali tra loro
+            # (Se il set ha lunghezza 1, tutti gli elementi sono identici)
+            if len(set(column)) == 1:
+                perfect_columns += 1
+                
+        return float(perfect_columns)
+
+    def get_cs_percentage(self) -> float:
+        """Ritorna la percentuale di colonne conservate rispetto alla lunghezza totale."""
+        total_cs = self.calculate_total_cs()
+        if not self.history: return 0.0
+        return (total_cs / len(self.history)) * 100
