@@ -40,6 +40,11 @@ class FastaContent:
     @property
     def name(self) -> str:
         return self.__name
+    
+    @property
+    def path(self) -> str:
+        return self.path
+
 
 
 import os, re

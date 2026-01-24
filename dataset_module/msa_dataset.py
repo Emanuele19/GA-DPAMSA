@@ -81,6 +81,11 @@ class MSADataset:
     @property
     def path(self) -> str:
         return self.__path
+    
+    @property
+    def shape(self):
+        return self.__dset.shape
+
 
     def close(self):
         self.__h5_file.close()
