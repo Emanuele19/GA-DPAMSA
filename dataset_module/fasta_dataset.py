@@ -61,6 +61,19 @@ class _FastaItem(Dataset):
         return FastaContent(self.paths[i], self.encoder)
 
 class FastaDataset:
+    """
+    Dataset per la gestione e il caricamento di file FASTA da una directory.
+
+    Questa classe incapsula la logica per scansionare una cartella alla ricerca di file .fasta,
+    ordinarli naturalmente e caricarli. Supporta l'iterazione efficiente tramite un DataLoader
+    interno che utilizza multiprocessing per il caricamento asincrono dei file.
+
+    Args:
+        folder_path (str): Percorso della directory contenente i file FASTA.
+        encoder (SequenceEncoder): Oggetto responsabile della codifica delle sequenze in tensori.
+        num_workers (int, optional): Numero di processi worker per il caricamento dati parallelo. Default: 4.
+        prefetch_factor (int, optional): Numero di campioni caricati in anticipo da ciascun worker. Default: 10.
+    """
     def __init__(self, folder_path: str, encoder, num_workers: int = 4, prefetch_factor: int = 10):
         self.__path = folder_path
         self.__encoder = encoder
