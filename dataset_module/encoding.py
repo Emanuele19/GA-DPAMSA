@@ -22,3 +22,38 @@ class SequenceEncoder:
     @property
     def vocab_size(self) -> int:
         return len(self.mapping)
+    
+
+from typing import List, Dict
+
+class SequenceDecoder:
+    """
+    Gestisce la conversione di tensori numerici in sequenze di nucleotidi.
+    """
+    def __init__(self, char_to_int: Dict[str, int]):
+        # Creiamo la mappa inversa: da intero a carattere
+        self.int_to_char: Dict[int, str] = {i: c for c, i in char_to_int.items()}
+        # Identifichiamo il valore del padding per poterlo ignorare
+        self.pad_value = char_to_int.get("<PAD>", None)
+
+    def decode_sequence(self, tensor: torch.Tensor) -> str:
+        """
+        Converte un singolo tensore 1D in una stringa di nucleotidi.
+        """
+        # Convertiamo il tensore in una lista di interi
+        indices = tensor.flatten().tolist()
+        
+        # Ricostruiamo la stringa ignorando i valori di padding
+        chars = [
+            self.int_to_char[idx] 
+            for idx in indices 
+            if idx != self.pad_value and idx in self.int_to_char
+        ]
+        
+        return "".join(chars)
+
+    def decode_batch(self, tensor: torch.Tensor) -> List[str]:
+        """
+        Data una matrice (N_seq, L), restituisce una lista di N stringhe.
+        """
+        return [self.decode_sequence(row) for row in tensor]
