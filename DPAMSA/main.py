@@ -16,7 +16,7 @@ import utils
 import datasets.training_dataset.synthetic_dataset_4x101bp as inference_dataset
 import datasets.training_dataset.zhang_dataset_3x30 as training_dataset
 
-from dataset_module import FastaContent, FastaDataset
+from dataset_module import FastaContent, FastaDataset, MSADataset
 
 """
 DPAMSA Main Script
@@ -37,8 +37,8 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 
-TRAINING_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/cut_boards'))
-INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_6x60bp'))
+TRAINING_DATASET = MSADataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30.h5'))
+INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp'))
 INFERENCE_MODEL = 'model_3x30'
 
 
@@ -128,7 +128,7 @@ def update_writer(name, writers, episode, episode_loss, episode_reward, steps, s
     writers[name].add_scalar('Metrics/CS', column_score, episode)
 
 
-def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'):
+def train(dataset:MSADataset=TRAINING_DATASET, start=0, end=-1, model_path='new_model_3x30'):
     """
     Train a reinforcement learning model on the given dataset.
 
@@ -150,11 +150,11 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
 
     # Get the subset of datasets to process
     datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
-    for index, fasta in enumerate(datasets_to_process, start):
+    for index, ms in enumerate(datasets_to_process, start):
 
-        writers[fasta.name] = make_writer(fasta.name, log_dir)
+        writers[ms.name] = make_writer(ms.name, log_dir)
 
-        seqs = fasta.sequences
+        seqs = ms.sequences
 
         # Initialize environment and DQN agent
         env = Environment(seqs)
@@ -173,7 +173,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
         reward_history = []              # Store recent rewards for analysis
 
         # Create a single tqdm progress bar
-        pbar = tqdm(total=config.MAX_EPISODE, desc=f'Training on {fasta.name}', position=0, leave=True, dynamic_ncols=True)
+        pbar = tqdm(total=config.MAX_EPISODE, desc=f'Training on {ms.name}', position=0, leave=True, dynamic_ncols=True)
 
         # Training loop
         for episode in range(config.MAX_EPISODE):
@@ -224,7 +224,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
             pbar.update(1)
 
             # TensorBoard Logging
-            name = fasta.name
+            name = ms.name
             update_writer(name, writers, episode, episode_loss, episode_reward, steps, sp_score, column_score, agent.current_epsilon)
 
             # Close TensorBoard writer for the dataset
@@ -355,7 +355,7 @@ def menu():
             confirm = input("Do you want to proceed with inference? (yes/no): ").strip().lower()
             if confirm == "yes":
                 print("\nStarting inference...")
-                inference()
+                inference(dataset=INFERENCE_DATASET, model_path=INFERENCE_MODEL)
             else:
                 print("\nInference canceled.")
 

@@ -17,6 +17,13 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 # ===========================
+# Nucleotide Encoding
+# ===========================
+NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5,
+                       'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5}
+
+
+# ===========================
 # DPAMSA Hyperparameters
 # ===========================
 GAP_PENALTY = -4  # Penalty for inserting a gap
