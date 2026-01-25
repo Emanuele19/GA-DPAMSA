@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import subprocess
+from sympy import content
+import re
 from tqdm import tqdm
-
+from pathlib import Path
 import config
 from DPAMSA.env import Environment
 
@@ -983,3 +985,479 @@ def plot_metrics(tool_csv_paths, dataset_name):
     plt.tight_layout()
     plt.savefig(os.path.join(dataset_charts_dir, f'mean_column_score.png'), dpi=300)
     plt.close()
+
+
+def _safe_mkdir(path: str) -> str:
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def _read_fasta_file(path: str) -> list[str]:
+    with open(path, "r") as f:
+        content = f.read()
+    return parse_fasta_to_sequences(content)
+
+def _find_report_file(tool_name: str, dataset_name: str) -> str | None:
+    # External tools: già definito in config.TOOLS
+    if tool_name in getattr(config, "TOOLS", {}):
+        report_dir = config.TOOLS[tool_name].get("report_dir")
+        if report_dir:
+            p = os.path.join(report_dir, f"{dataset_name}.txt")
+            return p if os.path.exists(p) else None
+
+    # DPAMSA
+    if tool_name == "DPAMSA":
+        p = os.path.join(config.DPAMSA_REPORTS_PATH, f"{dataset_name}.txt")
+        return p if os.path.exists(p) else None
+
+    # GA-DPAMSA
+    if tool_name == "GA-DPAMSA":
+        # caso standard (se esiste)
+        p = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{dataset_name}.txt")
+        if os.path.exists(p):
+            return p
+
+        # caso reale GA: dataset_name_*.txt (Max_SP, Max_CS, MO)
+        pattern = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{dataset_name}_*.txt")
+        hits = glob.glob(pattern)
+        if hits:
+            # prendi il più recente
+            hits.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+            return hits[0]
+
+        return None
+
+
+    # fallback (non necessario, ma innocuo)
+    p = os.path.join(config.REPORTS_PATH, f"{dataset_name}.txt")
+    return p if os.path.exists(p) else None
+
+
+def _parse_alignment_blocks(report_txt_path: str) -> dict[str, str]:
+    """
+    Parse blocks like:
+      File: test0.fasta
+      ...
+      Alignment:
+      <alignment text>
+
+    Returns dict: { "test0.fasta": "<alignment text>" }
+    """
+    with open(report_txt_path, "r") as f:
+        txt = f.read()
+
+    # Split by "File:" blocks
+    blocks = re.split(r"\n(?=File:\s)", "\n" + txt)
+    out = {}
+    for b in blocks:
+        m = re.search(r"File:\s*(.+)", b)
+        if not m:
+            continue
+        file_name = m.group(1).strip()
+
+        # alignment after "Alignment:"
+        m2 = re.search(r"Alignment:\s*\n(.+)", b, flags=re.DOTALL)
+        if not m2:
+            continue
+        alignment = m2.group(1).strip()
+        out[file_name] = alignment
+    return out
+
+def _consensus_line(aligned_lines: list[str]) -> str:
+    """
+    aligned_lines: list of aligned sequences (strings with gaps '-').
+    Returns a simple consensus indicator line:
+      '*' if all non-gap equal
+      '.' if at least 2 match (optional)
+      ' ' otherwise
+    """
+    if not aligned_lines:
+        return ""
+    L = max(len(s) for s in aligned_lines)
+    padded = [s.ljust(L, "-") for s in aligned_lines]
+
+    cons = []
+    for i in range(L):
+        col = [s[i] for s in padded]
+        # ignore gaps for "all equal"
+        non_gap = [c for c in col if c != "-"]
+        if len(non_gap) == 0:
+            cons.append(" ")
+        elif all(c == non_gap[0] for c in non_gap) and len(non_gap) == len(col):
+            cons.append("*")
+        else:
+            cons.append(" ")
+    return "".join(cons)
+
+def generate_compact_benchmark_report(
+    tool_csv_paths: dict,
+    dataset_name: str,
+    dataset_path: str,
+    baseline_tool: str = "DPAMSA",
+    top_k: int = 5,
+):
+    """
+    Create a compact report (CSV + HTML) that summarizes:
+      - Mean/median/std for SP and CS
+      - Paired deltas vs baseline (ΔSP, ΔCS) + win-rate
+      - Best/Worst cases with (optional) alignment visualization
+
+    Uses CSV files produced by save_inference_csv / inference. :contentReference[oaicite:4]{index=4}
+    """
+    # Output directory: keep it near charts for convenience
+    out_dir = os.path.join(config.CHARTS_PATH, dataset_name, "compact_report")
+    _safe_mkdir(out_dir)
+
+    # Load all results
+    dfs = {}
+    for tool, csv_path in tool_csv_paths.items():
+        df = pd.read_csv(csv_path)
+
+        # Normalize column names just in case ordering differs
+        # (Your save_inference_csv writes these columns) :contentReference[oaicite:5]{index=5}
+        required = ["File Name", "Sum of Pairs (SP)", "Column Score (CS)"]
+        for col in required:
+            if col not in df.columns:
+                raise ValueError(f"[{tool}] Missing column '{col}' in {csv_path}")
+
+        dfs[tool] = df
+
+    if baseline_tool not in dfs:
+        # fallback: use first tool as baseline
+        baseline_tool = list(dfs.keys())[0]
+
+    base_df = dfs[baseline_tool].set_index("File Name")
+
+    # --- Summary table ---
+    summary_rows = []
+    for tool, df in dfs.items():
+        sp = df["Sum of Pairs (SP)"]
+        cs = df["Column Score (CS)"]
+        summary_rows.append({
+            "Tool": tool,
+            "N": len(df),
+            "SP_mean": float(sp.mean()),
+            "SP_median": float(sp.median()),
+            "SP_std": float(sp.std(ddof=1)) if len(sp) > 1 else 0.0,
+            "CS_mean": float(cs.mean()),
+            "CS_median": float(cs.median()),
+            "CS_std": float(cs.std(ddof=1)) if len(cs) > 1 else 0.0,
+            "CS_zeros": int((cs == 0).sum()),
+        })
+
+    summary_df = pd.DataFrame(summary_rows).sort_values("SP_mean", ascending=False)
+    summary_csv = os.path.join(out_dir, "summary.csv")
+    summary_df.to_csv(summary_csv, index=False)
+
+    # --- Paired deltas vs baseline ---
+    deltas_rows = []
+    for tool, df in dfs.items():
+        if tool == baseline_tool:
+            continue
+        merged = df.set_index("File Name").join(
+            base_df[["Sum of Pairs (SP)", "Column Score (CS)"]].rename(
+                columns={"Sum of Pairs (SP)": "SP_base", "Column Score (CS)": "CS_base"}
+            ),
+            how="inner"
+        )
+        merged["dSP"] = merged["Sum of Pairs (SP)"] - merged["SP_base"]
+        merged["dCS"] = merged["Column Score (CS)"] - merged["CS_base"]
+
+        for fname, r in merged.reset_index().iterrows():
+            deltas_rows.append({
+                "Tool": tool,
+                "Baseline": baseline_tool,
+                "File Name": r["File Name"],
+                "SP": float(r["Sum of Pairs (SP)"]),
+                "CS": float(r["Column Score (CS)"]),
+                "SP_base": float(r["SP_base"]),
+                "CS_base": float(r["CS_base"]),
+                "dSP": float(r["dSP"]),
+                "dCS": float(r["dCS"]),
+            })
+
+    deltas_df = pd.DataFrame(deltas_rows)
+    deltas_csv = os.path.join(out_dir, "paired_deltas.csv")
+    deltas_df.to_csv(deltas_csv, index=False)
+
+    # --- Alignment blocks (optional) ---
+    alignments_by_tool = {}
+    for tool in dfs.keys():
+        report_path = _find_report_file(tool, dataset_name)
+        if report_path and os.path.exists(report_path):
+            try:
+                alignments_by_tool[tool] = _parse_alignment_blocks(report_path)
+            except Exception:
+                alignments_by_tool[tool] = {}
+        else:
+            alignments_by_tool[tool] = {}
+
+    # --- Pick best/worst cases per tool (based on SP) ---
+    cases = {}
+    for tool, df in dfs.items():
+        df_sorted = df.sort_values("Sum of Pairs (SP)", ascending=False)
+        best = df_sorted.head(top_k)["File Name"].tolist()
+        worst = df_sorted.tail(top_k)["File Name"].tolist()
+        cases[tool] = {"best": best, "worst": worst}
+
+    # --- Build HTML report ---
+    html_path = os.path.join(out_dir, "compact_report.html")
+
+    def _html_escape(s: str) -> str:
+        return (s.replace("&", "&amp;")
+                 .replace("<", "&lt;")
+                 .replace(">", "&gt;"))
+
+    # Win-rate summary vs baseline
+    winrate_lines = []
+    if not deltas_df.empty:
+        for tool in deltas_df["Tool"].unique():
+            dd = deltas_df[deltas_df["Tool"] == tool]
+            win_sp = (dd["dSP"] > 0).mean() if len(dd) else 0
+            win_cs = (dd["dCS"] > 0).mean() if len(dd) else 0
+            winrate_lines.append((tool, float(win_sp), float(win_cs), float(dd["dSP"].mean()), float(dd["dCS"].mean())))
+
+    # Helper to render a single case block
+    def render_case(file_name: str, tool: str) -> str:
+        tool_df = dfs[tool].set_index("File Name")
+
+        # metriche del tool
+        r = tool_df.loc[file_name]
+        sp = float(r["Sum of Pairs (SP)"])
+        cs = float(r["Column Score (CS)"])
+        al = int(r["Alignment Length (AL)"]) if "Alignment Length (AL)" in tool_df.columns else -1
+
+        # delta vs baseline (se esiste)
+        delta_str = ""
+        if tool != baseline_tool and not deltas_df.empty:
+            dd = deltas_df[(deltas_df["Tool"] == tool) & (deltas_df["File Name"] == file_name)]
+            if len(dd) == 1:
+                d_sp = float(dd["dSP"].iloc[0])
+                d_cs = float(dd["dCS"].iloc[0])
+                delta_str = f" | ΔSP={d_sp:+.1f} | ΔCS={d_cs:+.3f}"
+
+        summary = f"{file_name} — SP={sp:.1f} | CS={cs:.3f} | AL={al}{delta_str}"
+
+        # input
+        fasta_file = os.path.join(dataset_path, file_name)
+        original_seqs = _read_fasta_file(fasta_file) if os.path.exists(fasta_file) else []
+
+        # alignment (ora dovrebbe esserci grazie al fix sopra)
+        alignment_text = alignments_by_tool.get(tool, {}).get(file_name, "")
+
+        # prova a estrarre righe allineate
+        aligned_lines = []
+        if alignment_text:
+            for line in alignment_text.splitlines():
+                line = line.strip()
+                if line and re.fullmatch(r"[ATCGN\-]+", line):
+                    aligned_lines.append(line)
+
+        consensus = _consensus_line(aligned_lines) if aligned_lines else ""
+
+        block = []
+        block.append(f"<details class='case'><summary><b>{tool}</b> — {summary}</summary>")
+
+        if original_seqs:
+            block.append("<div><b>Input:</b><pre>" + _html_escape("\n".join(original_seqs)) + "</pre></div>")
+
+        if alignment_text:
+            block.append("<div><b>Alignment:</b>")
+            if consensus and aligned_lines:
+                block.append("<pre>" + _html_escape("\n".join(aligned_lines + [consensus])) + "</pre></div>")
+            else:
+                block.append("<pre>" + _html_escape(alignment_text) + "</pre></div>")
+        else:
+            block.append("<div><i>(Report alignment non trovato per questo tool.)</i></div>")
+
+        block.append("</details>")
+        return "\n".join(block)
+    
+        # Render HTML
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write("<html><head><meta charset='utf-8'><title>Compact Benchmark Report</title>")
+
+        f.write("""
+        <style>
+        :root{
+            --bg:#ffffff;
+            --text:#111827;
+            --muted:#6b7280;
+            --card:#f9fafb;
+            --border:#e5e7eb;
+            --good:#16a34a;
+            --bad:#dc2626;
+            --mono-bg:#0b1020;
+            --mono-text:#e6edf3;
+        }
+        body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            margin:20px; background:var(--bg); color:var(--text); max-width:1200px;}
+        h1{margin:0 0 6px 0; font-size:22px;}
+        h2{margin-top:26px; font-size:18px;}
+        h3{margin-top:18px; font-size:16px;}
+        p{color:var(--muted); margin-top:6px;}
+        .grid2{display:grid; grid-template-columns: 1.2fr 0.8fr; gap:14px; align-items:start;}
+        .grid2eq{display:grid; grid-template-columns: 1fr 1fr; gap:14px;}
+        .card{border:1px solid var(--border); background:var(--card); border-radius:12px; padding:12px;}
+        .kpi{display:flex; flex-direction:column; gap:4px; padding:10px; border:1px solid var(--border);
+            border-radius:12px; background:#fff;}
+        .kpi .label{font-size:12px; color:var(--muted);}
+        .kpi .value{font-size:18px; font-weight:700;}
+        .row{display:flex; gap:10px; flex-wrap:wrap;}
+        .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:#fff;}
+        .good{color:var(--good); border-color:rgba(22,163,74,.25); background:rgba(22,163,74,.06);}
+        .bad{color:var(--bad); border-color:rgba(220,38,38,.25); background:rgba(220,38,38,.06);}
+        table{border-collapse:collapse; width:100%; margin:10px 0; font-size:13px;}
+        td,th{border:1px solid var(--border); padding:8px; text-align:left;}
+        th{background:#f3f4f6; font-weight:700;}
+        .small{font-size:12px; color:var(--muted);}
+        pre{background:var(--mono-bg); color:var(--mono-text); padding:12px; overflow:auto;
+            border-radius:10px; font-size:13px; line-height:1.25;}
+        details.case{margin:10px 0; border:1px solid var(--border); border-radius:12px; padding:8px; background:#fff;}
+        details.case summary{cursor:pointer; font-size:13px;}
+        .section{margin-top:10px;}
+        </style>
+        """)
+
+        f.write("</head><body>")
+
+        # Header
+        f.write(f"<h1>Compact Benchmark Report — {dataset_name}</h1>")
+        f.write(f"<p><b>Baseline:</b> {baseline_tool} <span class='badge'>Top-K best/worst: {top_k}</span></p>")
+
+        # --------------------
+        # SUMMARY + KPIs
+        # --------------------
+        f.write("<h2>Overview</h2>")
+        f.write("<div class='grid2'>")
+
+        # Left: summary table
+        f.write("<div class='card'>")
+        f.write("<div class='row'>"
+                "<span class='badge'>Higher SP is better</span>"
+                "<span class='badge'>Higher CS is better</span>"
+                "</div>")
+        f.write(summary_df.to_html(index=False, float_format=lambda x: f"{x:.4f}"))
+        f.write("</div>")
+
+        # Right: KPI cards (baseline vs best tool by SP_mean)
+        best_tool = summary_df.iloc[0]["Tool"] if not summary_df.empty else baseline_tool
+        base_row = summary_df[summary_df["Tool"] == baseline_tool].iloc[0] if (summary_df["Tool"] == baseline_tool).any() else None
+        best_row = summary_df[summary_df["Tool"] == best_tool].iloc[0] if (summary_df["Tool"] == best_tool).any() else None
+
+        f.write("<div class='card'>")
+        f.write("<h3 style='margin:0 0 10px 0;'>Key numbers</h3>")
+        if base_row is not None:
+            f.write("<div class='kpi'><div class='label'>Baseline SP_mean</div>"
+                    f"<div class='value'>{base_row['SP_mean']:.2f}</div></div>")
+            f.write("<div style='height:10px'></div>")
+            f.write("<div class='kpi'><div class='label'>Baseline CS_mean</div>"
+                    f"<div class='value'>{base_row['CS_mean']:.3f}</div></div>")
+        if best_row is not None:
+            f.write("<div style='height:14px'></div>")
+            f.write(f"<div class='kpi'><div class='label'>Best tool by SP_mean</div>"
+                    f"<div class='value'>{best_tool}</div></div>")
+            f.write("<div style='height:10px'></div>")
+            f.write("<div class='kpi'><div class='label'>Best SP_mean</div>"
+                    f"<div class='value'>{best_row['SP_mean']:.2f}</div></div>")
+        f.write("</div>")  # end right card
+        f.write("</div>")  # end grid2
+
+        # --------------------
+        # PAIRED COMPARISON
+        # --------------------
+        f.write("<h2>Paired comparison vs baseline</h2>")
+        f.write("<p class='small'>For each file: dSP = SP(tool) − SP(baseline), dCS = CS(tool) − CS(baseline). "
+                "Win-rate is the percentage of files where the delta is positive.</p>")
+
+        if winrate_lines:
+            f.write("<div class='card'>")
+            f.write("<table><tr><th>Tool</th><th>Win-rate dSP&gt;0</th><th>Win-rate dCS&gt;0</th><th>Mean dSP</th><th>Mean dCS</th></tr>")
+            for tool, w_sp, w_cs, mdsp, mdcs in winrate_lines:
+                cls_sp = "good" if mdsp >= 0 else "bad"
+                cls_cs = "good" if mdcs >= 0 else "bad"
+                f.write("<tr>"
+                        f"<td><b>{tool}</b></td>"
+                        f"<td>{w_sp:.2%}</td>"
+                        f"<td>{w_cs:.2%}</td>"
+                        f"<td><span class='badge {cls_sp}'>{mdsp:+.2f}</span></td>"
+                        f"<td><span class='badge {cls_cs}'>{mdcs:+.4f}</span></td>"
+                        "</tr>")
+            f.write("</table>")
+
+            # Top / Bottom delta tables (only if we have deltas_df)
+            if not deltas_df.empty:
+                # pick the first non-baseline tool for detailed deltas (you can expand later)
+                focus_tool = deltas_df["Tool"].unique()[0]
+                dd = deltas_df[deltas_df["Tool"] == focus_tool].copy()
+                dd = dd.sort_values("dSP", ascending=False)
+
+                topn = dd.head(8)
+                botn = dd.tail(8)
+
+                def _render_delta_table(df_small, title):
+                    f.write(f"<h3 style='margin-top:16px'>{title} <span class='badge'>Tool: {focus_tool}</span></h3>")
+                    f.write("<table><tr><th>File</th><th>SP_base</th><th>SP</th><th>dSP</th><th>CS_base</th><th>CS</th><th>dCS</th></tr>")
+                    for _, r in df_small.iterrows():
+                        cls_sp = "good" if r["dSP"] >= 0 else "bad"
+                        cls_cs = "good" if r["dCS"] >= 0 else "bad"
+                        f.write("<tr>"
+                                f"<td>{r['File Name']}</td>"
+                                f"<td>{r['SP_base']:.1f}</td>"
+                                f"<td>{r['SP']:.1f}</td>"
+                                f"<td><span class='badge {cls_sp}'>{r['dSP']:+.1f}</span></td>"
+                                f"<td>{r['CS_base']:.3f}</td>"
+                                f"<td>{r['CS']:.3f}</td>"
+                                f"<td><span class='badge {cls_cs}'>{r['dCS']:+.3f}</span></td>"
+                                "</tr>")
+                    f.write("</table>")
+
+                f.write("<div class='grid2eq'>")
+                f.write("<div>")
+                _render_delta_table(topn, "Top improvements (by dSP)")
+                f.write("</div>")
+                f.write("<div>")
+                _render_delta_table(botn, "Worst / smallest improvements (by dSP)")
+                f.write("</div>")
+                f.write("</div>")  # grid2eq
+
+            f.write("</div>")  # card
+        else:
+            f.write("<div class='card'><i>No paired deltas available (maybe only one tool was run).</i></div>")
+
+        # --------------------
+        # BEST / WORST SIDE BY SIDE
+        # --------------------
+        f.write("<h2>Best / Worst cases (by SP)</h2>")
+        f.write("<p class='small'>Best = highest SP (less negative). Worst = lowest SP. Open a case to view input + alignment.</p>")
+
+        for tool in dfs.keys():
+            f.write(f"<h3>{tool}</h3>")
+            f.write("<div class='grid2eq'>")
+
+            # Best column
+            f.write("<div class='card'>")
+            f.write("<h4 style='margin:0 0 10px 0;'>Best</h4>")
+            for fname in cases[tool]["best"]:
+                f.write(render_case(fname, tool))
+            f.write("</div>")
+
+            # Worst column
+            f.write("<div class='card'>")
+            f.write("<h4 style='margin:0 0 10px 0;'>Worst</h4>")
+            for fname in cases[tool]["worst"]:
+                f.write(render_case(fname, tool))
+            f.write("</div>")
+
+            f.write("</div>")  # grid2eq
+
+        # Artifacts
+        f.write("<h2>Artifacts</h2>")
+        f.write("<div class='card'>")
+        f.write("<ul>")
+        f.write("<li><b>summary.csv</b> — per-tool stats</li>")
+        f.write("<li><b>paired_deltas.csv</b> — per-file deltas vs baseline</li>")
+        f.write("<li><b>compact_report.html</b> — this page</li>")
+        f.write("</ul>")
+        f.write("</div>")
+
+        f.write("</body></html>")

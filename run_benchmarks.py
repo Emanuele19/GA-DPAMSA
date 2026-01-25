@@ -116,6 +116,15 @@ def main():
     # Generate performance plots for the selected tools
     utils.plot_metrics(tool_csv_paths, DATASET_NAME)
 
+    # Generate compact comparision raport (summary + paired deltas + best/worst cases
+    utils.generate_compact_benchmark_report(
+        tool_csv_paths=tool_csv_paths,
+        dataset_name=DATASET_NAME,
+        dataset_path=dataset_path,
+        baseline_tool="DPAMSA" if "DPAMSA" in tool_csv_paths else "GA-DPAMSA",
+        top_k=5
+    )
+
 
 if __name__ == "__main__":
     main()
