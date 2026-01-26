@@ -79,11 +79,12 @@ class FastaDataset:
         num_workers (int, optional): Numero di processi worker per il caricamento dati parallelo. Default: 4.
         prefetch_factor (int, optional): Numero di campioni caricati in anticipo da ciascun worker. Default: 10.
     """
-    def __init__(self, folder_path: str, encoder, num_workers: int = 4, prefetch_factor: int = 10):
+    def __init__(self, folder_path: str, encoder: SequenceEncoder, num_workers: int = 4, prefetch_factor: int = 10):
         self.__path = folder_path
         self.__encoder = encoder
         self.__num_workers = num_workers
         self.__prefetch_factor = prefetch_factor
+        self.__name = os.path.basename(folder_path)
         
         # 1. Recupero e ordinamento path
         self.__fasta_paths = sorted([
@@ -93,6 +94,10 @@ class FastaDataset:
 
         # 2. Inizializzazione dell'oggetto Dataset interno
         self.__internal_ds = _FastaItem(self.__fasta_paths, self.__encoder)
+
+    @property
+    def name(self) -> str:
+        return self.__name
 
     def __natural_sort_key(self, path: str):
         match = re.search(r"(\d+)", os.path.basename(path))
