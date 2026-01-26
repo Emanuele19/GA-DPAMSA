@@ -228,7 +228,7 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
             update_writer(name, writers, episode, episode_loss, episode_reward, steps, sp_score, column_score, agent.current_epsilon)
 
             # Close TensorBoard writer for the dataset
-            writers[name].close()
+            #writers[name].close()
 
             # Early Stopping: Check reward improvement over last 100 episodes
             reward_history.append(episode_reward)
@@ -246,6 +246,8 @@ def train(dataset:FastaDataset=TRAINING_DATASET, start=0, end=-1, model_path='ne
                 if no_improve_count >= early_stopping_patience:
                     print(f"Early stopping activated. No improvement for {early_stopping_patience} episodes.")
                     break
+        writers[fasta.name].flush()
+        writers[fasta.name].close()
 
         # Close progress bar after training on dataset
         pbar.close()

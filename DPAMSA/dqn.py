@@ -60,8 +60,12 @@ class Net(nn.Module):
         self.f1 = nn.LeakyReLU()
         self.l2 = nn.Linear(1028, 512)
         self.f2 = nn.LeakyReLU()
-        self.l3 = nn.Linear(512, action_number)
-        self.f3 = nn.Tanh()
+        #self.l3 = nn.Linear(512, action_number)
+        #self.f3 = nn.Tanh()
+        #duelling DQN structure can be added here if needed
+        self.value_head = nn.Linear(512, 1)
+        self.adv_head = nn.Linear(512, action_number)
+        self.out_act = nn.Tanh()
 
         # Mask function to ignore certain values
         self.mask = lambda x, y: (x != y).unsqueeze(-2)
@@ -73,10 +77,18 @@ class Net(nn.Module):
         x = x.view(x.size()[0], -1)
         x = self.f1(self.l1(x))
         x = self.f2(self.l2(x))
-        x = self.f3(self.l3(x))
-        x = torch.mul(x, self.max_value) # Scale output by max value
+        value = self.value_head(x)
+        adv = self.adv_head(x)
+        #x = value + (advantage - advantage.mean(dim=-1, keepdim=True))
+        #x = torch.mul(x, self.max_value) # Scale output by max value
+        #
+        #return x
 
-        return x
+        q = value + adv - adv.mean(dim=-1, keepdim=True)
+        q = self.out_act(q)
+        q = torch.mul(q, self.max_value)  # Scale output by max value
+        return q
+    
 
 
 class DQN(ABC):
@@ -143,8 +155,11 @@ class DQN(ABC):
             action = np.random.randint(0, self.action_number) # Random action
         else:
             # Greedy policy
-            action_val = self.eval_net.forward(torch.LongTensor(state).unsqueeze_(0).to(config.DEVICE))
-            action = torch.argmax(action_val, 1).cpu().data.numpy()[0]  # Greedy action
+            #action_val = self.eval_net.forward(torch.LongTensor(state).unsqueeze_(0).to(config.DEVICE))
+            #action = torch.argmax(action_val, 1).cpu().data.numpy()[0]  # Greedy action
+            with torch.no_grad():
+                action_val = self.eval_net.forward(torch.LongTensor(state).unsqueeze_(0).to(config.DEVICE))
+                action = torch.argmax(action_val, 1).cpu().data.numpy()[0]  # Greedy action
 
         return action
 
@@ -174,7 +189,12 @@ class DQN(ABC):
 
         # Compute Q-values and targets
         q_eval = self.eval_net(batch_state).gather(1, batch_action.unsqueeze_(-1)).squeeze_(1).to(config.DEVICE)
-        q_next = self.target_net(batch_next_state).max(1)[0].to(config.DEVICE).detach_()
+        #q_next = self.target_net(batch_next_state).max(1)[0].to(config.DEVICE).detach_()
+        with torch.no_grad():
+            # Double DQN target: action selection with eval_net, value with target_net
+            next_action = self.eval_net(batch_next_state).argmax(1, keepdin= True)
+            q_next = self.target_net(batch_next_state).gather(1, next_action).squeeze_(1)
+            
         q_target = batch_reward + batch_done * config.GAMMA * q_next
 
         loss = self.loss_func(q_eval, q_target)

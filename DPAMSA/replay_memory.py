@@ -50,13 +50,23 @@ class ReplayMemory:
         -----------
         - data (tuple): A transition tuple (state, next_state, action, reward, done).
         """
-        if len(self.storage) == self.max_size:
-            self.storage[self.ptr-1] = data
+        #if len(self.storage) == self.max_size:
+        #    self.storage[self.ptr-1] = data
+        #    self.ptr = (self.ptr + 1) % self.max_size
+        #else:
+        #    self.storage.append(data)
+        #    self.ptr += 1
+        #    self.size += 1
+        
+        # Revised circular buffer logic
+        # replay more stable
+        if len (self.storage) == self.max_size:
+            self.storage[self.ptr] = data
             self.ptr = (self.ptr + 1) % self.max_size
         else:
             self.storage.append(data)
-            self.ptr += 1
             self.size += 1
+
 
     def sample(self, batch_size):
         """
