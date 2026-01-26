@@ -3,13 +3,13 @@ import os
 from tqdm import tqdm
 from typing import List
 
-from dqn import DQNAgent
+from DCNNMSA.dqn import DQNAgent
+from DCNNMSA.env import Environment
 from dataset_module import FastaDataset, SequenceEncoder, SequenceDecoder
-from env import Environment
 
-import config
+import config, csv
 
-def run_inference(model_path: str, data_folder: str, output_file: str, n_seq: int = 3, vocab_size: int = 6):
+def run_inference(model_path: str, data_folder: str, output_file: str, csv_file: str, n_seq: int = 3, vocab_size: int = 6):
     """
     Esegue l'inferenza caricando i file tramite FastaDataset e usando la classe FastaContent.
     """
@@ -43,38 +43,34 @@ def run_inference(model_path: str, data_folder: str, output_file: str, n_seq: in
             while not done:
                 action = agent.select_action(state)
                 state, reward, done = env.step(action)
-            
-            # 3. Estrazione dati finali
-            # Assumiamo che env.get_final_alignment() restituisca List[str]
-            # e env.calculate_cs() restituisca il Column Score
-            aligned_seqs = env.get_alignment_as_strings()
-            cs_score = env.calculate_total_cs()
-            perc_cs_score = env.get_cs_percentage() 
 
-            decoder = SequenceDecoder(config.NUCLEOTIDE_ENCODING)
-            original_sequence = decoder.decode_batch(fasta_content.tensor)
-
-            inference_results.append({
-                'name': fasta_content.name,
-                'original': original_sequence,
-                'aligned': aligned_seqs,
-                'cs': cs_score,
-                'perc_cs': perc_cs_score
-            })
+            metrics = env.calculate_metrics()
+            metrics['name'] = fasta_content.name
+            metrics['aligned'] = env.get_alignment_as_strings(SequenceDecoder(config.NUCLEOTIDE_ENCODING))
+            inference_results.append(metrics)
 
     # 4. Scrittura file di output
-    save_to_disk(inference_results, output_file) 
+    save_to_disk(inference_results, output_file, csv_file) 
 
-def save_to_disk(results: List[dict], output_path: str):
+def save_to_disk(results: List[dict], output_path: str, csv_path: str):
     with open(output_path, 'w') as f:
         for res in results:
-            f.write(f"FILE: {res['name']}\n")
-            f.write(f"Column Score (CS): {res['cs']:.4f} | ({res['perc_cs']:.2f}%)\n")
-            f.write("-" * 20 + "\n")
-            f.write("ALIGNED SEQUENCES:\n")
+            f.write(f"File: {res['name']}\n")
+            f.write(f"Number of Sequences (QTY): {res['QTY']}\n")
+            f.write(f"Alignment Length (AL): {res['AL']}\n")
+            f.write(f"Sum of Pairs (SP): {res['SP']}\n")
+            f.write(f"Exact Matches (EM): {res['EM']}\n")
+            f.write(f"Column Score (CS): {res['CS']:.3f}\n")
+            f.write("Alignment:\n")
             for s in res['aligned']:
                 f.write(f"{s}\n")
-            f.write("\n" + "="*40 + "\n\n")
+
+    with open(csv_path, 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
+                         "Exact Matches (EM)", "Column Score (CS)"])
+        for res in results:
+            writer.writerow([res['name'], res['QTY'], res['AL'], res['SP'], res['EM'], res['CS']])
 
 if __name__ == "__main__":
     run_inference(

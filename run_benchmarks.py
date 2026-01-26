@@ -4,7 +4,7 @@ from tqdm import tqdm
 import config
 import utils
 
-from dataset_module import FastaDataset
+from dataset_module import FastaDataset, SequenceEncoder
 
 """
 Benchmarking Script for MSA Methods
@@ -24,14 +24,17 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # Dataset and Model Configuration
 # ===========================
 
-# Ensure the dataset name matches the imported dataset module
-DATASET_NAME = 'dataset1_3x30bp'
+DATASET_NAME = 'synthetic_dataset_3x30bp'
+DPAMSA_MODEL = 'model_3x30'
+GA_DPAMSA_MODEL = 'model_3x30'
+DCNNMSA_MODEL = 'msa_model_ep6000.pth'
 
-# Ensure DPAMSA model matches dataset size
-DPAMSA_MODEL = 'new_model_3x30'
+encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 
-# Ensure GA-DPAMSA model matches 'AGENT_WINDOW_ROW' and 'AGENT_WINDOW_COLUMN' settings
-GA_DPAMSA_MODEL = 'new_model_3x30'
+# ===========================
+# Main Function
+# ===========================
+
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -50,7 +53,7 @@ def _run_ga_dpamsa_worker(dataset_path, model_name):
     """
     Worker process for GA-DPAMSA.
     """
-    dataset = FastaDataset(dataset_path)
+    dataset = FastaDataset(dataset_path, encoder=encoder)
     csv_path = utils.run_ga_dpamsa_inference('sp', dataset, model_name)
     return "GA-DPAMSA", csv_path
 
@@ -59,9 +62,27 @@ def _run_dpamsa_worker(dataset_path, model_name):
     """
     Worker process for DPAMSA.
     """
-    dataset = FastaDataset(dataset_path)
+    dataset = FastaDataset(dataset_path, encoder=encoder)
     csv_path = utils.run_dpamsa_inference(dataset, model_name)
     return "DPAMSA", csv_path
+
+
+def _run_dcnnmsa_worker(dataset_path, model_name):
+    """
+    Worker process for DCNNMSA.
+    """
+    dataset = FastaDataset(dataset_path, encoder=encoder)
+    from DCNNMSA.inference import run_inference
+
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
+    run_inference(
+        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, DCNNMSA_MODEL),
+        data_folder = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME),
+        csv_file = csv_path,
+        output_file = out_path
+    )
+    return "DCNNMSA", csv_path
 
 
 def main():
@@ -92,6 +113,10 @@ def main():
         # GA-DPAMSA
         jobs.append(
             executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)
+        )
+
+        jobs.append(
+            executor.submit(_run_dcnnmsa_worker, dataset_path, DCNNMSA_MODEL)
         )
 
         # DPAMSA if choice is 1 or 3

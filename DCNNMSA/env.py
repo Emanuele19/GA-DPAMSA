@@ -3,6 +3,8 @@ import numpy as np
 from typing import Tuple, List
 import config
 
+from dataset_module.encoding import SequenceDecoder
+
 class Environment:
     def __init__(self, input_tensor: torch.Tensor | np.ndarray, fixed_size: int = 30, gap_idx: int = 4, pad_idx: int = 5):
         
@@ -78,19 +80,12 @@ class Environment:
         alignment = np.array(self.history).T.tolist()
         return alignment
 
-    def get_alignment_as_strings(self, decoder: dict = None) -> List[str]:
+    def get_alignment_as_strings(self, decoder: SequenceDecoder = SequenceDecoder(config.NUCLEOTIDE_ENCODING)) -> List[str]:
         """
         Restituisce l'allineamento in formato testuale (es. ['AT-G', 'ATCG']).
-        """
-        if decoder is None:
-            # Decoder di default basato sul tuo mapping
-            decoder = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: '-', 5: ''}
-            
+        """            
         raw_alignment = self.get_alignment()
-        str_alignment = []
-        for row in raw_alignment:
-            str_alignment.append("".join([decoder.get(val, '') for val in row]))
-        return str_alignment
+        return decoder.decode_sequence(raw_alignment)
 
     def _calc_sp_reward(self, column: list) -> float:
         # Nota: usiamo direttamente aligned_column che contiene già i gap_idx decisi dall'azione
@@ -138,3 +133,45 @@ class Environment:
         total_cs = self.calculate_total_cs()
         if not self.history: return 0.0
         return (total_cs / len(self.history)) * 100
+    
+    def calc_sp_score(self) -> float:
+        """
+        Calcola il Sum of Pairs (SP) score totale per l'intero allineamento.
+        """
+        total_score = 0.0
+        for column in self.history:
+            total_score += self._calc_sp_reward(column)
+        return total_score
+    
+    def calc_exact_matched(self) -> int:
+        """
+        Calcola il numero di colonne esattamente allineate (exact matches).
+        Una colonna è un "exact match" se tutti i nucleotidi sono identici
+        e non contiene né gap né padding.
+        """
+        if not self.history:
+            return 0
+
+        exact_matches = 0
+        for column in self.history:
+            # Una colonna con gap o padding non può essere un exact match.
+            if self.gap_idx in column or self.pad_idx in column:
+                continue
+            # Se la colonna ha un solo tipo di nucleotide, è un exact match.
+            if len(set(column)) == 1:
+                exact_matches += 1
+        return exact_matches
+
+    def calculate_metrics(self) -> dict:
+        alignment_length = len(self.history)
+        num_sequences = self.N
+        cs_score = self.calculate_total_cs()
+        sp_score = self.calc_sp_score()
+        
+        return {
+            "AL": alignment_length,
+            "QTY": num_sequences,
+            "SP": sp_score,
+            "CS": cs_score,
+            "EM": self.calc_exact_matched
+        }
