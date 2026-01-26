@@ -1,5 +1,6 @@
 import copy
 import random
+import torch
 
 import config
 from DPAMSA.dqn import DQN
@@ -32,8 +33,8 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 # Map nucleotide characters to numerical values (gaps are represented by 5)
-nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5,'N':6, 'n':6}
-
+#nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5,'N':6, 'n':6}
+# nucleotides_map = config.NUCLEOTIDE_ENCODING
 
 class GA:
     def __init__(self, sequences, mode):
@@ -42,13 +43,17 @@ class GA:
 
         Parameters:
         -----------
-            sequences (list of str): Input nucleotide sequences to be aligned.
+            sequences (torch.Tensor | list): Input nucleotide sequences (encoded) to be aligned.
             mode (str): Evaluation mode. Options:
                         'sp'  -> Sum-of-Pairs,
                         'cs'  -> Column Score,
                         'mo'  -> Multi-Objective (combines SP and CS).
         """
-        self.sequences = sequences
+        if isinstance(sequences, torch.Tensor):
+            self.sequences = sequences.tolist()
+        else:
+            self.sequences = sequences
+            
         self.mode = mode
         self.population_size = config.POPULATION_SIZE  # Number of individuals in the population
         self.population = []  # List of candidate alignments (each alignment is a list of sequences)
@@ -76,13 +81,13 @@ class GA:
 
         # Add exact copies of dataset sequences
         for _ in range(num_exact_copies):
-            self.population.append([[nucleotides_map[nuc] for nuc in seq] for seq in self.sequences])
+            self.population.append(copy.deepcopy(self.sequences))
 
         # Add modified sequences with random gaps
         for _ in range(num_modified):
             modified_individual = []
             for sequence in self.sequences:
-                modified_seq = [nucleotides_map[nuc] for nuc in sequence]  # Convert to numerical form
+                modified_seq = list(sequence)  # Copy the sequence
                 # Determine number of gaps to insert (at least one gap)
                 num_gaps = max(1, round(len(modified_seq) * config.GAP_RATE))
                 # Insert gaps at random positions
@@ -547,4 +552,3 @@ class GA:
             print("✅ Alignment completed!")
 
         return aligned_seqs
-

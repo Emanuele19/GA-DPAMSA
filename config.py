@@ -19,8 +19,8 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # ===========================
 # Nucleotide Encoding
 # ===========================
-NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5,
-                       'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5}
+NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5, 'N': 4,
+                       'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5, 'n': 4}
 
 
 # ===========================
@@ -38,7 +38,7 @@ GAMMA = 0.99  # Discount factor for Q-learning
 DELTA = 0.05  # Epsilon decrement step size
 DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Number of steps to decay epsilon
 UPDATE_ITERATION = 128  # Number of iterations before updating the target network
-DEVICE_NAME = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
 
 # ===========================
 # Random Seed Configuration

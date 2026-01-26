@@ -41,8 +41,11 @@ class SequenceDecoder:
         Converte un singolo tensore 1D in una stringa di nucleotidi.
         """
         # Convertiamo il tensore in una lista di interi
-        indices = tensor.flatten().tolist()
+        if isinstance(tensor, list):
+            tensor = torch.tensor(tensor)
         
+        indices = tensor.flatten().tolist()
+
         # Ricostruiamo la stringa ignorando i valori di padding
         chars = [
             self.int_to_char[idx] 

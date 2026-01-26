@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import random
 import os
 from typing import Optional
-from base_net import MSANet
+from DCNNMSA.base_net import MSANet
 import config
 from model_utils import ReplayBuffer
 
@@ -19,7 +19,7 @@ class DQNAgent:
         self.epsilon: float = epsilon_start
         self.epsilon_decay: float = 0.9995
         self.epsilon_min: float = 0.05
-        self.device: torch.device = config.DEVICE_NAME
+        self.device: torch.device = config.DEVICE
         
         # Modelli: Policy e Target
         self.policy_net: MSANet = MSANet(n_sequences, vocab_size).to(self.device)

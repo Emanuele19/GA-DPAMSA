@@ -116,13 +116,12 @@ def inference(
     output_parameters()
 
     # Inference loop
-    datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
-    for index, fasta_content in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
+    for index, fasta_content in enumerate(tqdm(dataset, desc="Processing Datasets"), start):
         # Extract sequences
-        seqs = fasta_content.sequences
+        seqs = fasta_content.tensor
 
         # Initialize Environment
-        env = Environment(seqs, convert_data=False)
+        env = Environment(seqs)
 
         # Initialize and run GA
         ga = GA(seqs, mode)

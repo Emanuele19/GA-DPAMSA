@@ -16,7 +16,7 @@ import utils
 import datasets.training_dataset.synthetic_dataset_4x101bp as inference_dataset
 import datasets.training_dataset.zhang_dataset_3x30 as training_dataset
 
-from dataset_module import FastaContent, FastaDataset, MSADataset
+from dataset_module import FastaContent, FastaDataset, MSADataset, SequenceEncoder
 
 """
 DPAMSA Main Script
@@ -38,7 +38,7 @@ Co-Author (improved): https://github.com/FLaTNNBio/GA-DPAMSA
 
 
 TRAINING_DATASET = MSADataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30.h5'))
-INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp'))
+INFERENCE_DATASET = FastaDataset(os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp'), encoder=SequenceEncoder(config.NUCLEOTIDE_ENCODING))
 INFERENCE_MODEL = 'model_3x30'
 
 
@@ -59,7 +59,7 @@ def output_parameters():
     print("Delta: {}".format(config.DELTA))
     print("Decrement iteration: {}".format(config.DECREMENT_ITERATION))
     print("Update iteration: {}".format(config.UPDATE_ITERATION))
-    print("Device: {}".format(config.DEVICE_NAME))
+    print("Device: {}".format(config.DEVICE))
     print('\n')
 
 
@@ -284,10 +284,8 @@ def inference(dataset: FastaDataset, start=0, end=-1, model_path=INFERENCE_MODEL
             writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
                              "Exact Matches (EM)", "Column Score (CS)"])
 
-    datasets_to_process:list[FastaContent] = dataset[start:end if end != -1 else len(dataset)]
-
-    for index, fasta_content in enumerate(tqdm(datasets_to_process, desc="Processing Datasets"), start):
-        seqs = fasta_content.sequences
+    for index, fasta_content in enumerate(tqdm(dataset, desc="Processing Datasets"), start):
+        seqs = fasta_content.tensor
 
         env = Environment(seqs)
         agent = DQN(env.action_number, env.row, env.max_len, env.max_len * env.max_reward)

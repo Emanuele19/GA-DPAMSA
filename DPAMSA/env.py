@@ -4,6 +4,7 @@ import numpy as np
 import platform
 import tkinter as tk
 import tkinter.font as tf
+import torch
 
 import config
 
@@ -70,7 +71,7 @@ class Environment:
         # 1. Gestione Flessibile dell'Input (Stringhe vs Numeri)
         if convert_data:
             # Se i dati sono già numerici (np.ndarray o lista di liste di int)
-            if isinstance(data, np.ndarray):
+            if isinstance(data, np.ndarray) or isinstance(data, torch.Tensor):
                 self.data = data.tolist()
             elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], (list, np.ndarray)) and isinstance(data[0][0], int):
                 # Se è una lista di array numpy, convertiamo i singoli elementi
