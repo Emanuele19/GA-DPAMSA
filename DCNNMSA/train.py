@@ -78,6 +78,7 @@ def train():
     p_bar = tqdm(total=num_episodes, desc="Training")
     for episode, alignment in enumerate(dataset):
         if episode > num_episodes:
+            agent.save(f"msa_model_ep{episode}.pth")
             break
             
         env = Environment(alignment.sequences, fixed_size=W, 
@@ -94,9 +95,10 @@ def train():
             agent.store_transition(state, action, reward, next_state, done)
             learn_result = agent.learn(config.BATCH_SIZE)
             if learn_result:
-                loss, gradient_norm = learn_result
+                loss, gradient_norm, avg_q = learn_result
                 episode_loss.append(loss)
                 writer.add_scalar("Debug/Gradient_Norm_Step", gradient_norm, episode)
+                writer.add_scalar("Debug/Avg_Q_Value", avg_q, episode)
             
             state = next_state
             episode_reward += reward

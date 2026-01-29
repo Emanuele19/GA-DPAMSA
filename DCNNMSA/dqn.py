@@ -17,7 +17,7 @@ class DQNAgent:
         self.n_actions: int = 2**n_sequences - 1
         self.gamma: float = gamma
         self.epsilon: float = epsilon_start
-        self.epsilon_decay: float = 0.9995
+        self.epsilon_decay: float = config.EPSILON_DECAY
         self.epsilon_min: float = 0.05
         self.device: torch.device = config.DEVICE
         
@@ -60,8 +60,12 @@ class DQNAgent:
         current_q = self.policy_net(states).gather(1, actions)
 
         # 3. Calcolo Target Q (Bellman) tramite Target Net
+        # Il calcolo viene fatto con Double Deep Q-Network:
+        # Viene presa l'azione migliore dalla policy e calcolato il q val
+        # dalla target per evitare bias di sovrastima
         with torch.no_grad():
-            max_next_q = self.target_net(next_states).max(1)[0]
+            next_actions = self.policy_net(next_states).argmax(dim=1, keepdim=True)
+            max_next_q = self.target_net(next_states).gather(1, next_actions).squeeze()
             target_q = rewards + (self.gamma * max_next_q * (~dones))
 
         # 4. Loss e Backprop
@@ -90,7 +94,8 @@ class DQNAgent:
         
         self.optimizer.step()
         
-        return loss.item(), total_norm
+        return loss.item(), total_norm, current_q.mean().item()
+
 
     def update_target_network(self) -> None:
         """Sincronizza i pesi della Target Network con la Policy Network."""
