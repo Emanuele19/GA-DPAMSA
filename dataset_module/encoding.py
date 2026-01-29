@@ -30,11 +30,14 @@ class SequenceDecoder:
     """
     Gestisce la conversione di tensori numerici in sequenze di nucleotidi.
     """
-    def __init__(self, char_to_int: Dict[str, int]):
-        # Creiamo la mappa inversa: da intero a carattere
-        self.int_to_char: Dict[int, str] = {i: c for c, i in char_to_int.items()}
-        # Identifichiamo il valore del padding per poterlo ignorare
-        self.pad_value = char_to_int.get("<PAD>", None)
+    def __init__(self, int_to_char: Dict[str, int]):
+        self.int_to_char: Dict[int, str] = int_to_char
+        
+        self.pad_value = None
+        for k, v in int_to_char.items():
+            if v == 'P':
+                self.pad_value = k
+                break
 
     def decode_sequence(self, tensor: torch.Tensor) -> str:
         """
