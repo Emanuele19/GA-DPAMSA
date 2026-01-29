@@ -22,6 +22,9 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5, 'N': 4,
                        'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5, 'n': 4}
 
+NUCLEOTIDE_DECODING = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: '-', 5: 'P'}
+
+
 
 # ===========================
 # DPAMSA Hyperparameters
@@ -32,11 +35,10 @@ MATCH_REWARD = 4  # Reward for a correct match
 MAX_EPISODE = 20000  # Maximum number of training episodes
 BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
-ALPHA = 0.0001  # Learning rate for the optimizer
+ALPHA = 1e-5  # Learning rate for the optimizer
 EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
-GAMMA = 0.99  # Discount factor for Q-learning
-DELTA = 0.05  # Epsilon decrement step size
-DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Number of steps to decay epsilon
+GAMMA = 0.90  # Discount factor for Q-learning
+EPSILON_DECAY = 0.9998  # Decay rate for epsilon (e_t = e_{t-1} * decay)
 UPDATE_ITERATION = 1000  # Number of iterations before updating the target network
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
 
@@ -64,8 +66,6 @@ assert 0 < BATCH_SIZE <= REPLAY_MEMORY_SIZE, "batch size must be in the range of
 assert ALPHA > 0, "alpha must be greater than 0."
 assert 0 <= GAMMA <= 1, "gamma must be in the range of 0 to 1."
 assert 0 <= EPSILON <= 1, "epsilon must be in the range of 0 to 1."
-assert 0 <= DELTA <= EPSILON, "delta must be in the range of 0 to epsilon."
-assert 0 < DECREMENT_ITERATION, "decrement iteration must be greater than 0."
 
 
 # ===========================
