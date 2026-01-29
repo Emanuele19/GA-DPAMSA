@@ -45,7 +45,7 @@ class DQNAgent:
         self.memory.push(s, a, r, s_next, done)
 
     def update_epsilon(self) -> None:
-        """Riduce il fattloadore di esplorazione."""
+        """Riduce il fattore di esplorazione."""
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     def learn(self, batch_size: int = 64) -> Optional[float]:

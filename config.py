@@ -29,7 +29,7 @@ NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5, 'N': 4,
 GAP_PENALTY = -4  # Penalty for inserting a gap
 MISMATCH_PENALTY = -4  # Penalty for a mismatch
 MATCH_REWARD = 4  # Reward for a correct match
-MAX_EPISODE = 6000  # Maximum number of training episodes
+MAX_EPISODE = 20000  # Maximum number of training episodes
 BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 0.0001  # Learning rate for the optimizer
@@ -37,7 +37,7 @@ EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
 GAMMA = 0.99  # Discount factor for Q-learning
 DELTA = 0.05  # Epsilon decrement step size
 DECREMENT_ITERATION = math.ceil(MAX_EPISODE * 0.8 / (EPSILON // DELTA))  # Number of steps to decay epsilon
-UPDATE_ITERATION = 128  # Number of iterations before updating the target network
+UPDATE_ITERATION = 1000  # Number of iterations before updating the target network
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
 
 # ===========================

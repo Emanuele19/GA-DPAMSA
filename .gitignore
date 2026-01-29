@@ -9,6 +9,7 @@ results/*
 DPAMSA/runs
 DPAMSA/weights
 DCNNMSA/weights
+runs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
