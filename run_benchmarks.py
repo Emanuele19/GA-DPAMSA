@@ -27,7 +27,7 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 DATASET_NAME = 'synthetic_dataset_3x30bp'
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
-DCNNMSA_MODEL = 'msa_model_ep6000.pth'
+DCNNMSA_MODEL = 'msa_model_ep19000.pth'
 
 encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 

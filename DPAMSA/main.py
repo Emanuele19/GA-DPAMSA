@@ -56,8 +56,6 @@ def output_parameters():
     print("Alpha: {}".format(config.ALPHA))
     print("Epsilon: {}".format(config.EPSILON))
     print("Gamma: {}".format(config.GAMMA))
-    print("Delta: {}".format(config.DELTA))
-    print("Decrement iteration: {}".format(config.DECREMENT_ITERATION))
     print("Update iteration: {}".format(config.UPDATE_ITERATION))
     print("Device: {}".format(config.DEVICE))
     print('\n')

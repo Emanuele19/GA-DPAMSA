@@ -28,10 +28,10 @@ Author: https://github.com/ZhangLab312/DPAMSA
 colors = ["#FFFFFF", "#5CB85C", "#5BC0DE", "#F0AD4E", "#D9534F", "#808080"]
 
 # Mapping of nucleotides to numerical values
-nucleotides = [None] * (max(config.NUCLEOTIDE_ENCODING.values()) + 1)
-for char, val in config.NUCLEOTIDE_ENCODING.items():
-    nucleotides[val] = char.upper()
-
+# nucleotides = [None] * (max(config.NUCLEOTIDE_ENCODING.values()) + 1)
+# for char, val in config.NUCLEOTIDE_ENCODING.items():
+#    nucleotides[val] = char.upper()
+nucleotides = config.NUCLEOTIDE_DECODING
 
 class Environment:
     """
@@ -352,7 +352,7 @@ class Environment:
         alignment = ""
         for seq in self.aligned:
             if isinstance(seq[0], int):  # If sequences are numeric, convert them to string format
-                alignment += ''.join([nucleotides[n - 1] for n in seq]) + '\n'
+                alignment += ''.join([nucleotides[n] for n in seq]) + '\n'
             else:  # Join characters
                 alignment += ''.join(seq) + '\n'
         return alignment.rstrip()

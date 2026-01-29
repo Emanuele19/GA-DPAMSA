@@ -15,6 +15,15 @@ class Environment:
         self.fixed_size = fixed_size
         self.gap_idx = gap_idx
         self.pad_idx = pad_idx
+
+        # Il reward si accumula per ogni episodio in due modi:
+        # 1. Come somma di reward a coppie di nucleotidi nella colonna corrente
+        # 2. Come somma dei reward calcolati nel punto 1. per tutte le colonne
+        # Qui sto scalando i reward per colonna perché lo step è fatto una
+        # colonna alla volta. Lo scaling porta tutti i reward tra [-1 e 1]
+        # Va fratto al reward nella funzione di calcolo dei reward
+        num_pairs = self.N * (self.N - 1) // 2
+        self.reward_scaling_factor = 1.0 / (num_pairs * config.MATCH_REWARD)
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
@@ -80,12 +89,12 @@ class Environment:
         alignment = np.array(self.history).T.tolist()
         return alignment
 
-    def get_alignment_as_strings(self, decoder: SequenceDecoder = SequenceDecoder(config.NUCLEOTIDE_ENCODING)) -> List[str]:
+    def get_alignment_as_strings(self, decoder: SequenceDecoder = SequenceDecoder(config.NUCLEOTIDE_DECODING)) -> List[str]:
         """
         Restituisce l'allineamento in formato testuale (es. ['AT-G', 'ATCG']).
         """            
         raw_alignment = self.get_alignment()
-        return decoder.decode_sequence(raw_alignment)
+        return decoder.decode_batch(raw_alignment)
 
     def _calc_sp_reward(self, column: list) -> float:
         # Nota: usiamo direttamente aligned_column che contiene già i gap_idx decisi dall'azione
@@ -100,7 +109,7 @@ class Environment:
                     score += config.MATCH_REWARD
                 else:
                     score += config.MISMATCH_PENALTY
-        return score
+        return score * self.reward_scaling_factor
     
     def calculate_total_cs(self) -> float:
         """
@@ -126,7 +135,8 @@ class Environment:
             if len(set(column)) == 1:
                 perfect_columns += 1
                 
-        return float(perfect_columns)
+        return float(perfect_columns) / len(self.history)
+    
 
     def get_cs_percentage(self) -> float:
         """Ritorna la percentuale di colonne conservate rispetto alla lunghezza totale."""
@@ -173,5 +183,5 @@ class Environment:
             "QTY": num_sequences,
             "SP": sp_score,
             "CS": cs_score,
-            "EM": self.calc_exact_matched
+            "EM": self.calc_exact_matched()
         }

@@ -46,11 +46,14 @@ def run_inference(model_path: str, data_folder: str, output_file: str, csv_file:
 
             metrics = env.calculate_metrics()
             metrics['name'] = fasta_content.name
-            metrics['aligned'] = env.get_alignment_as_strings(SequenceDecoder(config.NUCLEOTIDE_ENCODING))
+            metrics['aligned'] = env.get_alignment_as_strings(SequenceDecoder(config.NUCLEOTIDE_DECODING))
             inference_results.append(metrics)
 
     # 4. Scrittura file di output
     save_to_disk(inference_results, output_file, csv_file) 
+    print(f"\nInference completed successfully.")
+    print(f"Report saved at: {output_file}")
+    print(f"CSV saved at: {csv_file}\n\n")
 
 def save_to_disk(results: List[dict], output_path: str, csv_path: str):
     with open(output_path, 'w') as f:
@@ -64,6 +67,7 @@ def save_to_disk(results: List[dict], output_path: str, csv_path: str):
             f.write("Alignment:\n")
             for s in res['aligned']:
                 f.write(f"{s}\n")
+            f.write(f"\n")
 
     with open(csv_path, 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -73,8 +77,11 @@ def save_to_disk(results: List[dict], output_path: str, csv_path: str):
             writer.writerow([res['name'], res['QTY'], res['AL'], res['SP'], res['EM'], res['CS']])
 
 if __name__ == "__main__":
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
     run_inference(
-        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, 'msa_model_ep6000.pth'),
+        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, 'msa_model_ep19000.pth'),
         data_folder = os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp'),
-        output_file = os.path.join(config.REPORTS_PATH, 'DCNNMSA')
+        output_file = out_path,
+        csv_file = csv_path
     )
