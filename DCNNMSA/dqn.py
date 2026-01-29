@@ -45,7 +45,7 @@ class DQNAgent:
         self.memory.push(s, a, r, s_next, done)
 
     def update_epsilon(self) -> None:
-        """Riduce il fattore di esplorazione."""
+        """Riduce il fattloadore di esplorazione."""
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     def learn(self, batch_size: int = 64) -> Optional[float]:
@@ -69,9 +69,28 @@ class DQNAgent:
         
         self.optimizer.zero_grad()
         loss.backward()
+
+        # Calcolo della norma totale dei gradienti
+        # Matematicamente corrisponde a calcolare ||G||_2 = \sqrt{\sum_i g_i^2}
+        # Ovvero la norma L2 di tutti i gradienti della rete.
+        # Serve per dare un punteggio alla magnitudo dell'aggiornamento 
+        #   che il modello vorrebbe fare prima che venga applicato il clipping.
+        # Tecnicamente la funzione clip_grad_norm_ fa questo passaggio prima di
+        # clippare, ma non ne restituisce il risultato quindi lo computo a mano
+        total_norm = 0.0
+        for p in self.policy_net.parameters():
+            if p.grad is not None:
+                param_norm = torch.linalg.vector_norm(p.grad, ord=2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
+
+        # Clipping dei gradienti
+        # Scala i gradienti in modo che non superino max_norm
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
+        
         self.optimizer.step()
         
-        return loss.item()
+        return loss.item(), total_norm
 
     def update_target_network(self) -> None:
         """Sincronizza i pesi della Target Network con la Policy Network."""
