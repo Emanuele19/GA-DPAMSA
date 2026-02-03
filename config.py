@@ -17,6 +17,24 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
 # ===========================
+# Environment parameters
+# ===========================
+
+NUCLEOTIDES_MAP = {
+    'A': 1, 'a': 1,
+    'T': 2, 't': 2,
+    'C': 3, 'c': 3,
+    'G': 4, 'g': 4,
+    '-': 5,
+    'N': 6, 'n': 6,
+}
+NUCLEOTIDES = ['A', 'T', 'C', 'G', '-', 'N']
+
+GAP_TOKEN = 5
+
+VOCAB_SIZE = len(NUCLEOTIDES)
+
+# ===========================
 # DPAMSA Hyperparameters
 # ===========================
 GAP_PENALTY = -4  # Penalty for inserting a gap
