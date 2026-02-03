@@ -3,6 +3,10 @@ from typing import Tuple
 from dataset_module.data_utils import *
 from .aliases import Record
 
+from model_utils import setup_logger
+logger = setup_logger()
+
+
 class RemoveDuplicates:
     """
     Step 4: Legge le sequenze e rimuove quelle identiche, salvando i file puliti.
@@ -12,7 +16,7 @@ class RemoveDuplicates:
 
     def __call__(self, input_dir: Path, output_dir: Path):
         output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"--- Removing duplicates: {input_dir} -> {output_dir} ---")
+        logger.info(f"--- Removing duplicates: {input_dir} -> {output_dir} ---")
 
         for in_path in iter_fasta_files(input_dir, patterns=self.patterns):
             records = read_fasta(in_path)
@@ -22,7 +26,7 @@ class RemoveDuplicates:
 
             write_fasta(output_dir / in_path.name, out_records, width=WRAP_DEFAULT)
 
-            print(
+            logger.info(
                 f"{in_path.name}: {len(records)} -> "
                 f"{len(out_records)} unique sequences"
             )

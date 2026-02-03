@@ -24,7 +24,7 @@ class FastaWindowDataset(IterableDataset):
         transform: Optional[Callable] = None,
         max_seqs_per_block: int = 3,
         window_len: int = 30,
-        keep_incomplete_windows: bool = True,
+        keep_incomplete_windows: bool = False,
         drop_incomplete_groups: bool = True,
         drop_incomplete_windows_by_seqcount: bool = False,
         seed: Optional[int] = None

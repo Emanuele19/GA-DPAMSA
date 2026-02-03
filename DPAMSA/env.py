@@ -4,6 +4,7 @@ import numpy as np
 import platform
 import tkinter as tk
 import tkinter.font as tf
+import torch
 
 import config
 
@@ -27,16 +28,10 @@ Author: https://github.com/ZhangLab312/DPAMSA
 colors = ["#FFFFFF", "#5CB85C", "#5BC0DE", "#F0AD4E", "#D9534F", "#808080"]
 
 # Mapping of nucleotides to numerical values
-nucleotides_map = {
-    'A': 1, 'a': 1,
-    'T': 2, 't': 2,
-    'C': 3, 'c': 3,
-    'G': 4, 'g': 4,
-    '-': 5,
-    'N': 6, 'n': 6,
-}
-nucleotides = ['A', 'T', 'C', 'G', '-', 'N']
-
+# nucleotides = [None] * (max(config.NUCLEOTIDE_ENCODING.values()) + 1)
+# for char, val in config.NUCLEOTIDE_ENCODING.items():
+#    nucleotides[val] = char.upper()
+nucleotides = config.NUCLEOTIDE_DECODING
 
 class Environment:
     """
@@ -69,27 +64,53 @@ class Environment:
                  nucleotide_size=50, text_size=25,
                  show_nucleotide_name=True,
                  convert_data=True):
-        # Convert DNA sequences to numerical format if required
+        """
+        Inizializza l'ambiente MSA.
+        Accetta 'data' come lista di stringhe o come np.ndarray (dal nuovo loader HDF5).
+        """
+        # 1. Gestione Flessibile dell'Input (Stringhe vs Numeri)
         if convert_data:
-            self.data = [[nucleotides_map[char] for char in seq] for seq in data]
+            # Se i dati sono già numerici (np.ndarray o lista di liste di int)
+            if isinstance(data, np.ndarray) or isinstance(data, torch.Tensor):
+                self.data = data.tolist()
+            elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], (list, np.ndarray)) and isinstance(data[0][0], int):
+                # Se è una lista di array numpy, convertiamo i singoli elementi
+                self.data = [d.tolist() if isinstance(d, np.ndarray) else d for d in data]
+            else:
+                # Conversione standard da stringhe usando il config
+                self.data = [[config.NUCLEOTIDE_ENCODING[char] for char in seq] for seq in data]
         else:
             self.data = data
 
-        self.row = len(data)
-        self.max_len = max([len(data[i]) for i in range(len(data))])
+        # 2. Parametri Dimensionali
+        self.row = len(self.data)
+        self.max_len = max([len(d) for d in self.data]) if self.data else 0
+        
+        # 3. Costanti Dinamiche dal Config
+        # Recuperiamo i valori dal config per evitare "magic numbers" (es. il vecchio 5)
+        self.gap_value = config.NUCLEOTIDE_ENCODING['-']
+        self.padding_value = config.NUCLEOTIDE_ENCODING.get('P', 5)
+        
+        # Costruiamo la lista nucleotidi per la GUI basandoci sul dizionario del config
+        # Questo assicura che nucleotides[val] restituisca il carattere corretto
+        max_val = max(config.NUCLEOTIDE_ENCODING.values())
+        self.nucleotides_labels = ['?'] * (max_val + 1)
+        for char, val in config.NUCLEOTIDE_ENCODING.items():
+            self.nucleotides_labels[val] = char.upper()
+
+        # 4. Parametri Visualizzazione
         self.show_nucleotide_name = show_nucleotide_name
         self.nucleotide_size = nucleotide_size
         self.max_window_width = 1800
         self.text_size = text_size
-
         self.action_number = 2 ** self.row - 1
         self.max_reward = self.row * (self.row - 1) / 2 * config.MATCH_REWARD
 
-        # Initialize alignment states
-        self.aligned = [[] for _ in range(self.row)]
-        self.not_aligned = copy.deepcopy(self.data)
+        # 5. Inizializzazione Stato
+        # Usiamo reset() per garantire che aligned e not_aligned siano pronti
+        self.reset()
 
-        # Initialize Tkinter GUI (Windows only)
+        # 6. Inizializzazione GUI (Solo su Windows)
         if platform.system() == "Windows":
             self.window = tk.Tk()
             self.__init_size()
@@ -144,16 +165,9 @@ class Environment:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def __get_current_state(self):
-        """
-        Get the current alignment state as a list of nucleotide indices.
-
-        Returns:
-        --------
-        - list: Flattened representation of the current state.
-        """
         state = []
         for i in range(self.row):
-            state.extend((self.not_aligned[i][j] if j < len(self.not_aligned[i]) else 5)
+            state.extend((self.not_aligned[i][j] if j < len(self.not_aligned[i]) else self.padding_value)
                          for j in range(len(self.not_aligned[i]) + 1))
 
         state.extend([0 for _ in range(self.row * (self.max_len + 1) - len(state))])
@@ -250,16 +264,17 @@ class Environment:
         - done (bool): Whether the alignment process is complete.
         """
         for bit in range(self.row):
+            # Controllo se l'azione prova a consumare una sequenza già finita
             if 0 == (action >> bit) & 0x1 and 0 == len(self.not_aligned[bit]):
                 return -self.max_reward, self.__get_current_state(), 0
 
         total_len = 0
         for bit in range(self.row):
             if 0 == (action >> bit) & 0x1:
-                self.aligned[bit].append(self.not_aligned[bit][0])
-                self.not_aligned[bit].pop(0)
+                # Funziona solo se self.not_aligned è una list
+                self.aligned[bit].append(self.not_aligned[bit].pop(0))
             else:
-                self.aligned[bit].append(5) # Insert gap
+                self.aligned[bit].append(self.gap_value)
 
             total_len += len(self.not_aligned[bit])
 
@@ -318,7 +333,7 @@ class Environment:
         if isinstance(seqs[0][0], int):  # If sequences are numeric
             self.aligned = seqs
         else:  # Convert string sequences to numeric format
-            self.aligned = [[nucleotides_map[char] for char in seq] for seq in seqs]
+            self.aligned = [[config.NUCLEOTIDE_ENCODING[char] for char in seq] for seq in seqs]
         self.not_aligned = [[] for _ in range(len(self.data))]
 
     def render(self):
@@ -337,7 +352,7 @@ class Environment:
         alignment = ""
         for seq in self.aligned:
             if isinstance(seq[0], int):  # If sequences are numeric, convert them to string format
-                alignment += ''.join([nucleotides[n - 1] for n in seq]) + '\n'
+                alignment += ''.join([nucleotides[n] for n in seq]) + '\n'
             else:  # Join characters
                 alignment += ''.join(seq) + '\n'
         return alignment.rstrip()

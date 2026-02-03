@@ -6,6 +6,10 @@ import json
 from tqdm import tqdm
 from .aliases import Record
 
+from model_utils import setup_logger
+logger = setup_logger()
+
+
 class ResolveAmbiguities:
     """
     Scansiona i file per calcolare la distribuzione globale di A, C, G, T
@@ -18,7 +22,7 @@ class ResolveAmbiguities:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # --- FASE 1: Scansione Simboli ---
-        print(f"Scanning symbols in {input_dir}...")
+        logger.info(f"Scanning symbols in {input_dir}...")
         symbols = Counter()
         
         for fasta_path in iter_fasta_files(input_dir, patterns=self.patterns):
@@ -27,19 +31,19 @@ class ResolveAmbiguities:
                 symbols.update(seq.upper())
 
         symbols.pop("", None)
-        print("Unique symbols found:", " ".join(sorted(symbols.keys())))
+        logger.info("Unique symbols found:", " ".join(sorted(symbols.keys())))
         
         # --- FASE 2: Calcolo Probabilità ---
         base_counts = {b: symbols[b] for b in "ACGT"}
         total = sum(base_counts.values())
 
         if total == 0:
-            print(f"[WARNING] Nessuna base ACGT trovata in {input_dir}. Copio i file senza modifiche o salto.")
+            logger.warning(f"Nessuna base ACGT trovata in {input_dir}. Copio i file senza modifiche o salto.")
             base_probs = {'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25} 
         else:
             base_probs = {b: base_counts[b] / total for b in "ACGT"}
 
-        print(f"Base probs detected: {base_probs}")
+        logger.info(f"Base probs detected: {base_probs}")
 
         json_path = output_dir.parent / "global_base_probs.json"
         json_path.write_text(json.dumps(base_probs, indent=2))

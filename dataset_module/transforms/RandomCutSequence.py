@@ -4,6 +4,11 @@ from typing import List, Optional
 from dataset_module.data_utils import *
 from .aliases import Record
 
+from model_utils import setup_logger
+logger = setup_logger()
+
+
+
 class RandomCutSequence:
     """Taglia le sequenze con logica randomica K/H."""
     
@@ -39,8 +44,8 @@ class RandomCutSequence:
             fout = output_dir / p.name
             write_fasta(fout, new_records, width=WRAP_DEFAULT)
 
-            print(
+            logger.info(
                 f"{p.name} | nseq={len(records)} | "
-                f"len_before=[{min(lengths_before)}–{max(lengths_before)}] | "
-                f"len_after=[{min(lengths_after)}–{max(lengths_after)}]"
+                f"len_before=[{min(lengths_before)}-{max(lengths_before)}] | "
+                f"len_after=[{min(lengths_after)}-{max(lengths_after)}]"
             )
