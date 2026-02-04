@@ -44,7 +44,7 @@ def train():
     TENSORBOARD_PATH = "runs/msa_dqn_experiment"
     
     # Inizializzazione Dataset
-    dataset = MSADataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30.h5'))
+    dataset = MSADataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30_train.h5'))
     
     # --- CHECK DIMENSIONE DATASET ---
     # Calcoliamo quanti file abbiamo effettivamente a disposizione
@@ -127,6 +127,7 @@ def train():
 
         p_bar.update(1)
 
+    agent.save(f"msa_model_ep{episode}.pth")
     writer.close()
     logger.info(f"\nTraining completato. Eseguiti {episode} episodi.")
 
