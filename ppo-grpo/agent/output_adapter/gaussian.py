@@ -42,7 +42,9 @@ class GaussianGapAdapter(IMSAOutputAdapter):
                     defines the output mask.
 
         """
-        mu = logits[..., 0]
+
+        # Using softplus to avoid dead neurons
+        mu = F.softplus(logits[..., 0])
         log_std = logits[..., 1]
 
         # --- MASKING LOGIC ---
@@ -60,7 +62,7 @@ class GaussianGapAdapter(IMSAOutputAdapter):
             # 2. Log_Std for padding
             # Std for padding is set an infinitesimal value
             # This avoids any useless learning made outside the mask
-            log_std = log_std * mask_float + (-20.0) * (1.0 - mask_float)
+            log_std = log_std * mask_float
 
         # Clamping for stability (as before)
         log_std = torch.clamp(log_std, min=-20, max=2)
