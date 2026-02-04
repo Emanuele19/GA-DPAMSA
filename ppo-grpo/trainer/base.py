@@ -4,6 +4,9 @@ from abc import ABC, abstractmethod
 from torch.utils.tensorboard import SummaryWriter
 from logging import Logger
 
+from ..data import IMSAPreprocessor
+from ..agent import BaseMSAAgent
+
 
 class BaseTrainer(ABC):
     """
@@ -17,7 +20,8 @@ class BaseTrainer(ABC):
 
     def __init__(
             self,
-            agent,
+            agent : BaseMSAAgent,
+            preprocessor: IMSAPreprocessor,
             config,
             logger: Logger,
             writer: SummaryWriter | None = None,
@@ -34,6 +38,7 @@ class BaseTrainer(ABC):
             padding_idx: The integer value used to pad shorter sequences in a batch.
         """
         self.agent = agent
+        self.preprocessor = preprocessor
         self.config = config
         self.logger = logger
         self.writer = writer
@@ -58,48 +63,10 @@ class BaseTrainer(ABC):
 
     def _prepare_batch(self, batch_data) -> torch.Tensor:
         """
-        Robust batch preparation with parameterized padding.
+        Prepares the batch for the network.
+        Now it simply delegates the work to the preprocessor.
         """
-        # Case 1: Already a Tensor
-        if torch.is_tensor(batch_data):
-            return batch_data.long().to(self.device)
-
-        # Case 2: List of jagged arrays/objects
-        if isinstance(batch_data, list):
-            # Handle Friend's MSAAlignment object
-            if hasattr(batch_data[0], 'sequences'):
-                batch_data = [item.sequences for item in batch_data]
-
-            # Find max dimensions
-            max_len = 0
-            n_rows = len(batch_data[0])
-
-            for sub_board in batch_data:
-                curr_len = len(sub_board[0])
-                if curr_len > max_len:
-                    max_len = curr_len
-
-            batch_size = len(batch_data)
-
-            # Initialize with the specific padding index
-            # Using torch.full ensures we fill the void with 'padding_idx' (e.g. -1 or 0)
-            padded = torch.full(
-                (batch_size, n_rows, max_len),
-                fill_value=self.padding_idx,
-                dtype=torch.long
-            )
-
-            for i, sub_board in enumerate(batch_data):
-                # Convert sub_board to tensor
-                sb_tensor = torch.tensor(sub_board, dtype=torch.long)
-                cols = sb_tensor.shape[1]
-
-                # Copy data into the padded canvas
-                padded[i, :, :cols] = sb_tensor
-
-            return padded.to(self.device)
-
-        raise TypeError(f"Unknown batch data type: {type(batch_data)}")
+        return self.preprocessor(batch_data, sanitize=True)
 
     @abstractmethod
     def train_step(self, batch) -> dict[str, float]:

@@ -15,8 +15,10 @@ from agent.critic.linear import MSA_Critic
 from agent.ppo_agent import PPO_Agent
 from agent.grpo_agent import GRPO_Agent
 
-from trainer.ppo_trainer import PPOTrainer
-from trainer.grpo_trainer import GRPOTrainer
+from trainer.ppo import PPOTrainer
+from trainer.grpo import GRPOTrainer
+
+from data.integer import IntegerStatePreprocessor
 
 
 def get_collate_fn():
@@ -79,11 +81,19 @@ def main():
     # 3. MODEL CONSTRUCTION (Modular Assembly)
     logger.info("Building Model Architecture...")
 
+    # A. Preprocessor
+    # Uses Integer preprocessor with sanitization
+    preprocessor = IntegerStatePreprocessor(
+        config,
+        device=device,
+    )
+
+
     # A. Backbone (The 'Eye')
     # Uses Dilated CNNs to capture DNA motifs
     backbone = DCNNBackbone(
         num_rows=config.AGENT_WINDOW_ROW,  # e.g., 3 sequences per block
-        vocab_size=len(config.NUCLEOTIDE_ENCODING) + 1,  # +1 for safe padding handling
+        vocab_size=len(config.NUCLEOTIDES_MAP) + 1,  # +1 for safe padding handling
         embedding_dim=64,
         hidden_dim=128
     )
@@ -100,7 +110,7 @@ def main():
     # We choose the strategy based on config.ALGO ('GRPO' or 'PPO')
 
     # Retrieve padding index safely from config
-    pad_idx = config.NUCLEOTIDE_ENCODING.get('P', 0)
+    pad_idx = config.NUCLEOTIDES_MAP.get('P', 0)
 
     if config.ALGO == 'GRPO':
         logger.info("Initializing GRPO Agent (Generative Rejection Policy)...")
@@ -111,6 +121,7 @@ def main():
         # Initialize the GRPO Trainer
         trainer = GRPOTrainer(
             agent=agent,
+            preprocessor=preprocessor,
             group_size=config.GRPO_GROUP_SIZE,  # e.g., Generate 8 variants per input
             env_mode='sp',  # Use Sum-of-Pairs scoring
             logger=logger,
@@ -126,7 +137,7 @@ def main():
         # We create a separate Backbone for the Critic to ensure stability
         critic_backbone = DCNNBackbone(
             num_rows=config.AGENT_WINDOW_ROW,
-            vocab_size=len(config.NUCLEOTIDE_ENCODING) + 1,
+            vocab_size=len(config.NUCLEOTIDES_MAP) + 1,
             embedding_dim=64,
             hidden_dim=128
         )
@@ -138,6 +149,7 @@ def main():
         # Initialize PPO Trainer
         trainer = PPOTrainer(
             agent=agent,
+            preprocessor=preprocessor,
             clip_eps=0.2,  # PPO Clipping Epsilon
             ppo_epochs=4,  # Number of update epochs per batch
             env_mode='sp',

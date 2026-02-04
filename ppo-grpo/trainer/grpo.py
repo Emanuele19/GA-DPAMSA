@@ -1,5 +1,5 @@
 import torch
-from .base_trainer import BaseTrainer
+from .base import BaseTrainer
 from ..env import Environment
 
 
