@@ -11,9 +11,11 @@ class GRPOTrainer(BaseTrainer):
     - Update: Uses Group Relative Policy Optimization (Action - GroupMean).
     """
 
-    def __init__(self, agent, group_size=8, env_mode='sp', **kwargs):
+    def __init__(self, agent, group_size=8, grpo_epochs=4, clip_eps=0.2, env_mode='sp', **kwargs):
         super().__init__(agent, **kwargs)
         self.group_size = group_size
+        self.grpo_epochs = grpo_epochs
+        self.clip_eps = clip_eps
         self.env_mode = env_mode
 
     def _get_raw_sequences(self, batch_data, tensor_batch):

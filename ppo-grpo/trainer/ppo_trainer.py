@@ -114,7 +114,14 @@ class PPOTrainer(BaseTrainer):
 
             self.agent.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.agent.actor.parameters(), 1.0)
+
+            # Gather all optimizer groups
+            all_params = []
+            for group in self.agent.optimizer.param_groups:
+                all_params.extend(group['params'])
+            # Clipping all groups params
+            torch.nn.utils.clip_grad_norm_(all_params, max_norm=1.0)
+
             self.agent.optimizer.step()
 
             total_p_loss += policy_loss.item()
