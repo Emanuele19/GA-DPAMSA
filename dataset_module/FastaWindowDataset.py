@@ -29,6 +29,34 @@ class FastaWindowDataset(IterableDataset):
         drop_incomplete_windows_by_seqcount: bool = False,
         seed: Optional[int] = None
     ):
+        """
+        Initializes the FastaWindowDataset.
+
+        This dataset iterates over FASTA files in a directory, groups sequences,
+        and slices them into vertical windows (columns aligned across sequences).
+
+        Args:
+            input_dir (Path): Directory containing .fasta or .fa files.
+            transform (Callable, optional): A function/transform that takes a list of
+                (header, sequence) tuples and returns a modified list. Applied
+                BEFORE grouping and windowing (e.g., for full-sequence augmentation).
+            max_seqs_per_block (int): The number of sequences to group together into a
+                single block (sub-board). Default is 3.
+            window_len (int): The length of the sliding window slices (sequence length).
+                Default is 30.
+            keep_incomplete_windows (bool): If False (default), discards the last
+                window of a sequence if it is shorter than `window_len`. If True,
+                keeps it (downstream code must handle padding).
+            drop_incomplete_groups (bool): If True (default), discards groups that
+                contain fewer sequences than `max_seqs_per_block`.
+                (e.g., if max_seqs=3 and a file has 8 sequences, the last 2 are dropped).
+            drop_incomplete_windows_by_seqcount (bool): If True, discards a specific
+                window slice if it doesn't have `max_seqs_per_block` rows. This happens
+                if sequences in a group have vastly different lengths. Default is False.
+            seed (int, optional): Random seed for reproducibility (mainly if transforms
+                contain randomness). Note: For multi-worker loaders, proper seeding
+                requires a `worker_init_fn`.
+        """
         super().__init__()
         self.input_dir = Path(input_dir)
         self.transform = transform
@@ -38,6 +66,8 @@ class FastaWindowDataset(IterableDataset):
         self.drop_incomplete_groups = drop_incomplete_groups
         self.drop_incomplete_windows_by_seqcount = drop_incomplete_windows_by_seqcount
         self.seed = seed
+
+
 
     def _chunk_sequence(self, seq: str) -> List[str]:
         """Splits a single sequence into chunks."""

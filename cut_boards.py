@@ -78,8 +78,7 @@ def main():
     basic_preparation = BasicCompose([
         ResolveAmbiguities(),
         RemoveDuplicates(),
-        RandomCutSequence(k=300, h=100),
-        ReplaceCharacters({'N': '-'})
+        RandomCutSequence(k=300, h=100)
     ])
 
     basic_preparation(RAW_DIR, PREPARED_DIR)
@@ -92,11 +91,11 @@ def main():
     # 2. Instantiate Dataset
     dataset = FastaWindowDataset(
         input_dir=PREPARED_DIR,
-        transform=augmentation,
+        transform=None,
         max_seqs_per_block=N,
         window_len=W,
         keep_incomplete_windows=False,
-        drop_incomplete_groups=False,
+        drop_incomplete_groups=True,
         drop_incomplete_windows_by_seqcount=True,
         seed=config.SEED
     )
