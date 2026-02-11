@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
 from .base import BaseTrainer
-from ppo_grpo.env import Environment
+from ..env import Environment
+
+from ..agent.ppo_agent import PPO_Agent
 
 
-class PPOTrainer(BaseTrainer):
+class PPOTrainer(BaseTrainer[PPO_Agent]):
     """
     Standard PPO Trainer (One-Shot version).
     - Input: Batch of B sub-boards.
@@ -14,30 +16,12 @@ class PPOTrainer(BaseTrainer):
       3. Loop K epochs: Update Policy to maximize Reward using Clipped Objective.
     """
 
-    def __init__(self, agent, clip_eps=0.2, entropy_coef=0.01, ppo_epochs=4, env_mode='sp', **kwargs):
+    def __init__(self, agent, clip_eps=0.2, ppo_epochs=4, env_mode='sp', **kwargs):
         super().__init__(agent, **kwargs)
         self.clip_eps = clip_eps
-        self.entropy_coef = entropy_coef
         self.ppo_epochs = ppo_epochs
         self.env_mode = env_mode
         self.mse_loss = nn.MSELoss()
-
-    def _get_raw_sequences(self, batch_data, tensor_batch):
-        # Same helper as GRPO (could be moved to BaseTrainer if reused often)
-        if isinstance(batch_data, list) and not torch.is_tensor(batch_data):
-            if hasattr(batch_data[0], 'sequences'):
-                return [x.sequences for x in batch_data]
-            return batch_data
-
-        raw_seqs = []
-        cpu_batch = tensor_batch.cpu().numpy()
-        for i in range(len(cpu_batch)):
-            sub_board = []
-            for row in cpu_batch[i]:
-                clean_row = [x for x in row if x != self.padding_idx]
-                sub_board.append(clean_row)
-            raw_seqs.append(sub_board)
-        return raw_seqs
 
     def train_step(self, batch_data):
         # 1. Prepare Data
@@ -60,15 +44,15 @@ class PPOTrainer(BaseTrainer):
             old_value = self.agent.critic.get_value(state).squeeze(-1)
 
             # Compute Rewards (Environment)
-            rewards = []
             old_action_cpu = old_action.cpu()
+            gap_matrix_batch = self.agent.actor.adapter.decode(old_action_cpu)
+
+            rewards = []
             for i in range(len(raw_sequences)):
-                aligned_seqs = self.agent.actor.adapter.decode(
-                    raw_sequences[i],
-                    old_action_cpu[i]
-                )
+
                 env = Environment(raw_sequences[i], mode=self.env_mode)
-                rewards.append(env.compute_reward(aligned_seqs))
+                score, _, _ = env.evaluate(gap_matrix_batch[i])
+                rewards.append(score)
 
             rewards = torch.tensor(rewards, device=self.device, dtype=torch.float32)
 
@@ -84,6 +68,8 @@ class PPOTrainer(BaseTrainer):
         # We re-process the SAME batch multiple times
         total_p_loss = 0
         total_v_loss = 0
+        total_ent = 0
+        final_loss = 0
 
         for _ in range(self.ppo_epochs):
             # Evaluate current policy on old actions
@@ -91,11 +77,10 @@ class PPOTrainer(BaseTrainer):
             new_log_prob = new_dist.log_prob(old_action)
             new_log_prob = (new_log_prob * mask).sum(dim=[1, 2])
 
-            entropy = new_dist.entropy()
-            entropy_loss = (entropy * mask).sum(dim=[1, 2]).mean()
-
             new_value = self.agent.critic.get_value(state).squeeze(-1)
 
+            # Entropy loss
+            weighted_entropy , mean_entropy = self._compute_masked_entropy(new_dist, mask)
             # Ratio calculation
             ratio = torch.exp(new_log_prob - old_log_prob)
 
@@ -110,7 +95,7 @@ class PPOTrainer(BaseTrainer):
             value_loss = self.mse_loss(new_value, rewards)
 
             # Total Loss
-            loss = policy_loss + 0.5 * value_loss - self.entropy_coef * entropy_loss
+            loss = policy_loss + 0.5 * value_loss - weighted_entropy
 
             self.agent.optimizer.zero_grad()
             loss.backward()
@@ -126,10 +111,14 @@ class PPOTrainer(BaseTrainer):
 
             total_p_loss += policy_loss.item()
             total_v_loss += value_loss.item()
+            total_ent += mean_entropy.item()
+            final_loss = loss.item()
 
         return {
-            'loss': (total_p_loss + total_v_loss) / self.ppo_epochs,
-            'policy_loss': total_p_loss / self.ppo_epochs,
-            'value_loss': total_v_loss / self.ppo_epochs,
-            'avg_reward': rewards.mean().item()
+            'loss': final_loss,
+            'loss_policy': total_p_loss / self.ppo_epochs,
+            'loss_value': total_v_loss / self.ppo_epochs,
+            'entropy': total_ent / self.ppo_epochs,
+            'avg_reward': rewards.mean().item(),
+            'max_reward': rewards.max().item()
         }

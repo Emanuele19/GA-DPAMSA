@@ -18,8 +18,8 @@ class GaussianGapAdapter(IMSAOutputAdapter):
     def __init__(
             self,
             max_gaps: int = getattr(config, "MAX_GAPS", None),
-            min_log_std: float = -20.0,
-            max_log_std: float = 2.0,
+            min_log_std: float = getattr(config, "MIN_LOG_STD", -20.0),
+            max_log_std: float = getattr(config, "MAX_LOG_STD", 2.0),
     ):
         self.max_gaps = max_gaps
 

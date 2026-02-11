@@ -3,12 +3,14 @@ import os
 from abc import ABC, abstractmethod
 from torch.utils.tensorboard import SummaryWriter
 from logging import Logger
+from typing import TypeVar, Generic
 
-from ppo_grpo.data import IMSAPreprocessor
-from ppo_grpo.agent import BaseMSAAgent
+from ..data import IMSAPreprocessor
+from ..agent import BaseMSAAgent
 
+AgentType = TypeVar("AgentType", bound=BaseMSAAgent)
 
-class BaseTrainer(ABC):
+class BaseTrainer(ABC, Generic[AgentType]):
     """
     Abstract base class for MSA Trainers.
     Handles common boilerplate:
@@ -20,13 +22,14 @@ class BaseTrainer(ABC):
 
     def __init__(
             self,
-            agent : BaseMSAAgent,
+            agent : AgentType,
             preprocessor: IMSAPreprocessor,
             config,
             logger: Logger,
             writer: SummaryWriter | None = None,
             output_dir: str = "checkpoints",
-            padding_idx: int = 5
+            padding_idx: int = 5,
+            entropy_coef: float = 0.0,
     ):
         """
         Args:
@@ -50,6 +53,8 @@ class BaseTrainer(ABC):
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.global_step = 0
+        config_entropy_coef = getattr(config, "ENTROPY_COEFFICIENT", None)
+        self.entropy_coef = config_entropy_coef if config_entropy_coef is not None else entropy_coef
 
     def save_checkpoint(self, filename: str):
         filepath = os.path.join(self.output_dir, filename)
@@ -68,6 +73,93 @@ class BaseTrainer(ABC):
         """
         return self.preprocessor(batch_data, sanitize=True)
 
+    def _compute_masked_entropy(
+            self,
+            dist: torch.distributions.Distribution,
+            mask: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Calculates the mean entropy of the distribution, ignoring padding.
+
+        Standard PyTorch .mean() would divide by the total size of the tensor
+        (including padding), artificially lowering entropy for short sequences.
+        This method computes the mean entropy per VALID token.
+
+        Formula:
+            E = Sum(H(x) * mask) / Sum(mask)
+
+        Args:
+            dist: The PyTorch distribution output by the Actor.
+                  Shape: (Batch, Rows, Len)
+            mask: Boolean or Float tensor indicating valid data (1) vs padding (0).
+                  Shape: (Batch, Rows, Len)
+
+        Returns:
+            weighted_entropy (torch.Tensor): mean_entropy * entropy_coef
+            raw_mean_entropy (torch.Tensor): A scalar tensor representing the average uncertainty
+                          per valid nucleotide.
+        """
+        # 1. Get raw entropy for every position (Batch, Rows, Len)
+        raw_entropy = dist.entropy()
+
+        # 2. Zero out entropy values corresponding to padding tokens.
+        masked_entropy = raw_entropy * mask
+
+        # 3. Compute the mean over valid tokens only.
+        valid_token_count = mask.sum() + 1e-8
+
+        mean_entropy = masked_entropy.sum() / valid_token_count
+
+        #4 Compute weighted term
+        weighted_entropy = mean_entropy * self.entropy_coef
+
+        return weighted_entropy, mean_entropy
+
+    def _get_raw_sequences(
+            self,
+            batch_data,
+            tensor_batch
+    ) -> list[list[list[int]]]:
+        """
+        Extracts clean, unpadded biological sequences from the batch.
+
+        This method bridges the gap between the 'Technical View' (Rectangular Tensors
+        required by GPUs) and the 'Biological View' (Ragged lists of integers required
+        by the Environment/Alignment logic).
+
+        Args:
+            batch_data: The raw data yielded by the DataLoader. Can be a list of
+                        objects, a list of lists, or a Tensor.
+            tensor_batch: The processed tensor (Batch, Rows, Max_Len) used in the
+                          forward pass. Used here to recover data if batch_data
+                          is not directly usable.
+
+        Returns:
+            list[list[list[int]]]: A nested list structure containing ONLY valid
+            nucleotide indices. All technical padding (self.padding_idx) is removed.
+        """
+        # If the dataloader yielded objects with a 'sequences' attribute, use that directly.
+        if isinstance(batch_data, list) and not torch.is_tensor(batch_data):
+            if hasattr(batch_data[0], 'sequences'):
+                return [x.sequences for x in batch_data]
+            if len(batch_data) > 0 and isinstance(batch_data[0], list) and isinstance(batch_data[0][0], list):
+                return batch_data
+
+        # Fallback: Convert the padded tensor back to a clean list of lists.
+        # This removes the trailing 0s (padding_idx) added by the collate_fn/preprocessor.
+        raw_seqs = []
+        cpu_batch = tensor_batch.cpu().numpy()
+
+        for i in range(len(cpu_batch)):
+            board = []
+            for r in range(len(cpu_batch[i])):
+                row_data = cpu_batch[i][r]
+                clean_row = [int(x) for x in row_data if x != self.padding_idx]
+                board.append(clean_row)
+            raw_seqs.append(board)
+
+        return raw_seqs
+
     @abstractmethod
     def train_step(self, batch) -> dict[str, float]:
         pass
@@ -82,10 +174,10 @@ class BaseTrainer(ABC):
             if batch_idx % 10 == 0:
                 self.log_metrics(metrics, self.global_step)
 
-                if batch_idx % 100 == 0:
-                    loss_str = f"{metrics.get('loss', 0):.4f}"
-                    rew_str = f"{metrics.get('avg_reward', 0):.2f}"
-                    self.logger.info(
-                        f"Epoch {epoch_idx} | Step {batch_idx} | "
-                        f"Loss: {loss_str} | Reward: {rew_str}"
-                    )
+            if batch_idx % 100 == 0:
+                loss_str = f"{metrics.get('loss', 0):.4f}"
+                rew_str = f"{metrics.get('avg_reward', 0):.2f}"
+                self.logger.info(
+                    f"Epoch {epoch_idx} | Step {batch_idx} | "
+                    f"Loss: {loss_str} | Reward: {rew_str}"
+                )

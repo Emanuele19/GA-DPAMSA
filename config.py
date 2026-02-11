@@ -82,6 +82,9 @@ NUCLEOTIDE_DECODING = {
     5: '-',
     6: 'N'
 }
+
+ENTROPY_COEFFICIENT = 0.0
+
 # ===========================
 # DPAMSA Hyperparameters
 # ===========================
