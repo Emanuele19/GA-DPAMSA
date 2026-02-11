@@ -36,7 +36,9 @@ MAX_GAPS_PER_POS = 5       # Maximum gaps the model can predict per position
 LR = 1e-4                  # Learning Rate
 MAX_EPOCH = 100            # Total training epochs
 SAVE_FREQ = 10             # Save weights every N epochs
-GRPO_GROUP_SIZE = 8        # (Only for GRPO) Number of parallel samples per input
+GRPO_GROUP_SIZE = 16       # (Only for GRPO) Number of parallel samples per input
+
+ENTROPY_COEFFICIENT = 0.01
 
 # Paths
 TENSORBOARD_PATH = "./runs/experiment_gen_01"
@@ -83,7 +85,6 @@ NUCLEOTIDE_DECODING = {
     6: 'N'
 }
 
-ENTROPY_COEFFICIENT = 0.0
 
 # ===========================
 # DPAMSA Hyperparameters

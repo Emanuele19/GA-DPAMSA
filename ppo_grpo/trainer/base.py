@@ -5,8 +5,8 @@ from torch.utils.tensorboard import SummaryWriter
 from logging import Logger
 from typing import TypeVar, Generic
 
-from ..data import IMSAPreprocessor
-from ..agent import BaseMSAAgent
+from ppo_grpo.data import IMSAPreprocessor
+from ppo_grpo.agent import BaseMSAAgent
 
 AgentType = TypeVar("AgentType", bound=BaseMSAAgent)
 
@@ -56,10 +56,13 @@ class BaseTrainer(ABC, Generic[AgentType]):
         config_entropy_coef = getattr(config, "ENTROPY_COEFFICIENT", None)
         self.entropy_coef = config_entropy_coef if config_entropy_coef is not None else entropy_coef
 
+        # DEBUG
+        logger.info(f"Entropy Coefficient: {self.entropy_coef}")
+
     def save_checkpoint(self, filename: str):
         filepath = os.path.join(self.output_dir, filename)
         self.agent.save(filepath)
-        self.logger.info(f"💾 Checkpoint saved: {filepath}")
+        self.logger.info(f"- Checkpoint saved: {filepath}")
 
     def log_metrics(self, metrics: dict[str, float], step: int, prefix: str = "Train"):
         if self.writer:

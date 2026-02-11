@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 from .base import BaseTrainer
-from ..env import Environment
+from ppo_grpo.env import Environment
 
-from ..agent.ppo_agent import PPO_Agent
+from ppo_grpo.agent.ppo_agent import PPO_Agent
 
 
 class PPOTrainer(BaseTrainer[PPO_Agent]):

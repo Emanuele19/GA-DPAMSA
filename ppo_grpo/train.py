@@ -88,7 +88,6 @@ def main():
         device=device,
     )
 
-
     # A. Backbone (The 'Eye')
     # Uses Dilated CNNs to capture DNA motifs
     backbone = DCNNBackbone(

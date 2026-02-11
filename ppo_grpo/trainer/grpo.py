@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 from .base import BaseTrainer
-from ..env import Environment
-from ..agent.grpo_agent import GRPO_Agent
+from ppo_grpo.env import Environment
+from ppo_grpo.agent.grpo_agent import GRPO_Agent
 
 
 class GRPOTrainer(BaseTrainer[GRPO_Agent]):
@@ -27,7 +27,6 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             group_size=8,
             grpo_epochs=4,
             clip_eps=0.2,
-            entropy_coef=0.0,
             env_mode='sp',
             **kwargs
     ):
@@ -36,7 +35,6 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
         self.grpo_epochs = grpo_epochs
         self.clip_eps = clip_eps
         self.env_mode = env_mode
-        self.entropy_coef = entropy_coef
 
     def train_step(self, batch_data):
         """
@@ -120,18 +118,6 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             # Store metrics for averaging later
             for k, v in metrics.items():
                 metrics_history[k].append(v)
-
-            # Debug Logging (Periodic check of the first sample)
-            if i == 0 and self.global_step % 20 == 0:
-                self.logger.info(f"\n--- DEBUG STEP {self.global_step} ---")
-                self.logger.info(f"Reward: {score:.2f} | CS: {metrics['CS']:.2f}% | SP: {metrics['SP']:.2f}")
-
-                # Visual check of the first 20 characters of the first row
-                debug_map = {1: 'A', 2: 'C', 3: 'G', 4: 'T', 5: '-', 0: 'P'}
-                # Robustly map chars, handling potential unknown tokens
-                row0 = "".join([debug_map.get(x, '?') for x in aligned_seqs_debug[0][:30]])
-                self.logger.info(f"Row 0: {row0}...")
-                self.logger.info("------------------------\n")
 
         # Convert rewards to tensor for PyTorch operations
         rewards = torch.tensor(rewards, device=self.device, dtype=torch.float32)
