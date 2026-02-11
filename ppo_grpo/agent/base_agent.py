@@ -9,6 +9,7 @@ class BaseMSAAgent(ABC):
     Base Agent class.
     Every agent MUST have an Actor (Policy) to make decisions.
     """
+    optimizer: torch.optim.Optimizer
 
     def __init__(self, actor: IMSAActor, device: str = 'cpu'):
         self.actor = actor

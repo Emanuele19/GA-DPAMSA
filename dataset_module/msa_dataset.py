@@ -14,7 +14,7 @@ class MSAAlignment:
         self._index = index
         self._name = name
         # reverse mapping
-        self._rev_map = {value: key for key, value in config.NUCLEOTIDE_ENCODING.items()}
+        self._rev_map = {value: key for key, value in config.NUCLEOTIDES_MAP.items()} # TODO: Parametrize dict
 
     @property
     def sequences(self) -> np.ndarray:

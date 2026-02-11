@@ -19,17 +19,30 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # ===========================
 # Nucleotide Encoding
 # ===========================
-NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5, 'N': 4,
-                       'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5, 'n': 4}
-
-NUCLEOTIDE_DECODING = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: '-', 5: 'P'}
+# --- config.py REQUIRED ADDITIONS ---
+import os
 
 
+# Algorithm Selection: 'GRPO' or 'PPO'
+ALGO = 'GRPO'
 
-# ===========================
-# Environment parameters
-# ===========================
+# Dimensions
+AGENT_WINDOW_COLUMN = 30
+AGENT_WINDOW_ROW = 3       # Number of sequences in a sub-board (block)
+BATCH_SIZE = 4             # Number of sub-boards to process at once
+MAX_GAPS_PER_POS = 5       # Maximum gaps the model can predict per position
 
+# Training Hyperparameters
+LR = 1e-4                  # Learning Rate
+MAX_EPOCH = 100            # Total training epochs
+SAVE_FREQ = 10             # Save weights every N epochs
+GRPO_GROUP_SIZE = 8        # (Only for GRPO) Number of parallel samples per input
+
+# Paths
+TENSORBOARD_PATH = "./runs/experiment_gen_01"
+MODEL_WEIGHTS_PATH = "./weights"
+
+# Symbols mapping
 NUCLEOTIDES_MAP = {
     'A': 1, 'a': 1,
     'T': 2, 't': 2,
@@ -37,13 +50,38 @@ NUCLEOTIDES_MAP = {
     'G': 4, 'g': 4,
     '-': 5,
     'N': 6, 'n': 6,
+    'P': 0, 'p' : 0
 }
-NUCLEOTIDES = ['A', 'T', 'C', 'G', '-', 'N']
+NUCLEOTIDES = ['P','A', 'T', 'C', 'G', '-', 'N']
 
 GAP_TOKEN = 5
 
+PADDING_TOKEN = 0
+
 VOCAB_SIZE = len(NUCLEOTIDES)
 
+BASE_DATASETS_PATH = os.path.join("../datasets")
+FASTA_FILES_PATH = os.path.join(BASE_DATASETS_PATH, "fasta_files")
+
+
+NUCLEOTIDE_ENCODING = {
+    'A': 1, 'a': 1,
+    'T': 2, 't': 2,
+    'C': 3, 'c': 3,
+    'G': 4, 'g': 4,
+    '-': 5,
+    'N': 6, 'n': 6,
+    'P': 0, 'p' : 0
+}
+NUCLEOTIDE_DECODING = {
+    0: 'P',
+    1: 'A',
+    2: 'T',
+    3: 'C',
+    4: 'G',
+    5: '-',
+    6: 'N'
+}
 # ===========================
 # DPAMSA Hyperparameters
 # ===========================
@@ -51,7 +89,7 @@ GAP_PENALTY = -4  # Penalty for inserting a gap
 MISMATCH_PENALTY = -4  # Penalty for a mismatch
 MATCH_REWARD = 4  # Reward for a correct match
 MAX_EPISODE = 20000  # Maximum number of training episodes
-BATCH_SIZE = 128  # Number of experiences sampled per training step
+#BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 1e-5  # Learning rate for the optimizer
 EPSILON = 0.95  # Initial epsilon value for ε-greedy policy

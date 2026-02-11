@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from torch.utils.tensorboard import SummaryWriter
 from logging import Logger
 
-from ..data import IMSAPreprocessor
-from ..agent import BaseMSAAgent
+from ppo_grpo.data import IMSAPreprocessor
+from ppo_grpo.agent import BaseMSAAgent
 
 
 class BaseTrainer(ABC):

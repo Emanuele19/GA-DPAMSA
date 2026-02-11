@@ -43,17 +43,15 @@ class IMSAOutputAdapter(ABC):
 
     @abstractmethod
     def decode(self,
-               raw_sequences: list[list[int]],
-               actions: torch.Tensor) -> list[list[int]]:
+               actions: torch.Tensor) -> list[list[list[int]]]:
         """
         Reconstructs the final alignment based on the actions.
 
         Args:
-            raw_sequences: The original input sequences (integers).
             actions: Tensor of shape (Batch, Rows, Len) containing integer decisions.
 
         Returns:
-            list of aligned sequences with gaps inserted.
+            matrix of gap counters for every available position.
         """
         pass
 

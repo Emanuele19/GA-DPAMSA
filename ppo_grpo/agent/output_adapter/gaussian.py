@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn.functional as F
 from ..interfaces import IMSAOutputAdapter
@@ -16,8 +15,16 @@ class GaussianGapAdapter(IMSAOutputAdapter):
     Output Dimension: 2 per slot (Mean, Log_Std).
     """
 
-    def __init__(self, max_gaps: int = getattr(config, "MAX_GAPS", None)):
+    def __init__(
+            self,
+            max_gaps: int = getattr(config, "MAX_GAPS", None),
+            min_log_std: float = -20.0,
+            max_log_std: float = 2.0,
+    ):
         self.max_gaps = max_gaps
+
+        self.min_log_std = min_log_std
+        self.max_log_std = max_log_std
 
     @property
     def logit_dim(self) -> int:
@@ -65,45 +72,27 @@ class GaussianGapAdapter(IMSAOutputAdapter):
             log_std = log_std * mask_float
 
         # Clamping for stability (as before)
-        log_std = torch.clamp(log_std, min=-20, max=2)
+        log_std = torch.clamp(log_std, min=self.min_log_std, max=self.max_log_std)
         std = torch.exp(log_std)
 
         dist = torch.distributions.Normal(mu, std)
         return dist
 
-    def decode(self,
-               raw_sequences: list[list[int]],
-               actions: torch.Tensor) -> list[list[int]]:
+    def decode(self, actions: torch.Tensor) -> list[list[list[int]]]:
         """
-        Transforms sampled continuous values into valid gap integers.
+        Transforms sampled continuous values into valid gap integer lists.
 
-        Process:
-        1. Float Action (e.g., -0.5, 1.3, 4.8)
-        2. ReLU -> (0.0, 1.3, 4.8) -> No negative gaps
-        3. Round -> (0, 1, 5) -> Nearest integer
-        4. Clamp -> (0, 1, MAX) -> Safety limit
+        Clean Architecture Version:
+        - It acts on the full tensor.
+        - It doesn't care about biological sequence lengths.
+        - Trimming is left to the consumer (Environment).
         """
-        # 1. Apply constraints
-        # ReLU ensures we don't try to insert "-1" gaps.
-        # Round converts "1.7 gaps" to "2 gaps".
+        # 1. Apply constraints: ReLU (non-negative) -> Round (integer)
         cleaned_actions = torch.round(F.relu(actions)).int()
 
-        # 2. Convert to list of lists for the Environment
-        # We also truncate to the actual sequence length (ignoring padding predictions)
-        final_alignment_matrix = []
+        # 2. Convert to Python List of Lists
+        if hasattr(cleaned_actions, 'cpu'):
+            cleaned_actions = cleaned_actions.cpu()
 
-        # Move to CPU for list processing
-        cleaned_actions_cpu = cleaned_actions.cpu().numpy()
-
-        for r, seq in enumerate(raw_sequences):
-            seq_len = len(seq)
-            # Take only the slots relevant to this sequence length
-            # shape: (Max_Slots,) -> slice to (Seq_Len,)
-            row_gaps = cleaned_actions_cpu[r, :seq_len]
-
-            # Enforce max cap if configured (optional safety)
-            row_gaps = np.clip(row_gaps, 0, self.max_gaps)
-
-            final_alignment_matrix.append(row_gaps.tolist())
-
-        return final_alignment_matrix
+        # Returns a list of lists, e.g., 30 integers per row
+        return cleaned_actions.tolist()

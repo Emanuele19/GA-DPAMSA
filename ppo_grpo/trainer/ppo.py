@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from .base import BaseTrainer
-from ..env import Environment
+from ppo_grpo.env import Environment
 
 
 class PPOTrainer(BaseTrainer):

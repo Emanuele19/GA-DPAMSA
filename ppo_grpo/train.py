@@ -4,8 +4,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 
-from . import config
-from .utils import setup_logger
+import config
+from utils import setup_logger
 from dataset_module import MSADataset
 
 from agent.backbone.dcnn import DCNNBackbone
@@ -95,12 +95,17 @@ def main():
         num_rows=config.AGENT_WINDOW_ROW,  # e.g., 3 sequences per block
         vocab_size=len(config.NUCLEOTIDES_MAP) + 1,  # +1 for safe padding handling
         embedding_dim=64,
-        hidden_dim=128
+        hidden_dim=12
     )
 
     # B. Output Adapter (The 'Translator')
     # Maps network output to Mean/Std for Gaussian Sampling of gaps
-    adapter = GaussianGapAdapter(max_gaps=config.MAX_GAPS_PER_POS)
+    adapter = GaussianGapAdapter(
+        max_gaps=config.MAX_GAPS_PER_POS,
+        min_log_std=-2.0,
+        max_log_std=2.0,
+
+    )
 
     # C. Actor (The 'Brain')
     # Connects Backbone to Adapter
@@ -127,7 +132,8 @@ def main():
             logger=logger,
             writer=writer,
             output_dir=config.MODEL_WEIGHTS_PATH,
-            padding_idx=pad_idx
+            padding_idx=pad_idx,
+            config=config,
         )
 
     elif config.ALGO == 'PPO':
