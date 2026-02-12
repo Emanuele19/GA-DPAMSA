@@ -1,8 +1,9 @@
 import torch
-import numpy as np
+import torch.nn.functional as F
 from .base import BaseTrainer
-from ppo_grpo.env import Environment
+from ppo_grpo.vect_env import VectorizedEnvironment
 from ppo_grpo.agent.grpo_agent import GRPO_Agent
+
 
 
 class GRPOTrainer(BaseTrainer[GRPO_Agent]):
@@ -36,131 +37,156 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
         self.clip_eps = clip_eps
         self.env_mode = env_mode
 
-    def train_step(self, batch_data):
-        """
-        Executes a single training step for a batch of data.
+        self.env = VectorizedEnvironment(self.config, self.device)
 
-        Process:
-            1. Forward Pass (Actor) -> Get Gap Distributions.
-            2. Sampling -> Get Gap Counts (Actions).
-            3. Environment Evaluation -> Get Rewards & Metrics.
-            4. Backward Pass -> Update Weights using GRPO Loss.
+    def train_step(self, batch_data) -> dict[str, float]:
         """
+        Executes a single optimization step using GRPO (Group Relative Policy Optimization)
+        with PPO Clipping.
+
+        This method performs two distinct phases:
+        1. **Experience Collection (Sampling Phase):**
+           - Generates multiple variations (Group) for each input sequence.
+           - Evaluates them on the GPU Environment to get Rewards.
+           - Calculates Advantages relative to the group mean.
+
+        2. **Optimization (Training Phase):**
+           - Iterates `grpo_epochs` times over the collected experience.
+           - Recalculates probabilities (New Policy) vs original probabilities (Old Policy).
+           - Applies PPO Clipping to prevent destructive updates.
+
+        Args:
+            batch_data: Raw batch from the DataLoader.
+
+        Returns:
+            metrics: A dictionary of scalar metrics (Loss, Reward, Entropy, etc.) for logging.
+        """
+
+        # =====================================================================
+        # PHASE 1: EXPERIENCE COLLECTION (SAMPLING)
+        # We generate data using the CURRENT policy (which becomes 'OLD' for the PPO loop).
+        # =====================================================================
+
         # 1. Prepare Data
-        # State: (Batch, Rows, Len) - Tensor on Device
+        # state shape: (Batch, Rows, Len) -> On GPU
         state = self._prepare_batch(batch_data)
-
-        # Raw Sequences: List of Lists (CPU) - The biological ground truth
-        raw_sequences = self._get_raw_sequences(batch_data, state)
         batch_size = state.shape[0]
 
-        # 2. Replicate Inputs for Group Generation
-        # We expand the batch [A, B] -> [A...A, B...B] (Group Size times)
-        # Dimensions: (Batch * Group, Rows, Len)
+        # 2. Expansion (Group Generation)
+        # Replicate input sequences `group_size` times.
+        # shape: (Batch * Group, Rows, Len)
         state_repeated = state.repeat_interleave(self.group_size, dim=0)
 
-        # 3. Parallel Sampling (Forward Pass)
-        # The actor handles distribution creation and masking internally.
-        # dist is usually a Normal distribution (Mean, Std).
-        dist = self.agent.actor.get_distribution(state_repeated)
+        # 3. Action Sampling & Evaluation
+        # We use no_grad because we are collecting fixed data points (trajectory)
+        # The gradients will be calculated later during the PPO optimization loop.
+        with torch.no_grad():
+            # A. Get Old Policy Distribution
+            old_dist = self.agent.actor.get_distribution(state_repeated)
 
-        # Sample continuous actions from the distribution
-        actions = dist.sample()  # Shape: (Batch*G, Rows, Len)
+            # B. Sample Actions (Continuous)
+            actions_float = old_dist.sample()  # Shape: (Batch*Group, Rows, Len)
 
-        # 4. Compute Log Probs (Essential for Gradient Calculation)
-        log_probs = dist.log_prob(actions)
+            # C. Compute Old Log Probabilities
+            # These are the probabilities of the actions *at the time of sampling*.
+            # They serve as the denominator in the PPO Ratio (New/Old).
+            mask = (state_repeated != self.padding_idx).float()
 
-        # Mask Log Probs: Padding positions shouldn't affect the gradient.
-        # mask is 1 where data is valid, 0 where padding.
-        mask = (state_repeated != self.padding_idx).float()
+            # Sum log_probs over dimensions (Rows, Len) to get probability per sample.
+            old_log_probs_raw = old_dist.log_prob(actions_float)
+            old_log_probs = (old_log_probs_raw * mask).sum(dim=[1, 2])
 
-        # Sum log_probs over Rows and Length to get one scalar probability per sample
-        # (Assuming independence between positions)
-        log_probs = (log_probs * mask).sum(dim=[1, 2])
+            # D. Decode & Evaluate (GPU Environment)
+            # Convert continuous actions to integers for the environment
+            actions_int = torch.round(F.relu(actions_float)).long()
 
-        # 5. Evaluation (The Bridge to Environment)
-        rewards = []
+            # Run the vectorized environment (Massively Parallel)
+            rewards, metrics = self.env.evaluate_batch(state_repeated, actions_int)
 
-        # We accumulate biological metrics for logging (SP, CS, EM, AL)
-        metrics_history = {"SP": [], "CS": [], "EM": [], "AL": []}
-
-        actions_cpu = actions.cpu()
-
-        # A. Decode: Neural Net Output -> Integer Gap Matrix
-        # The adapter transforms floats (e.g., 1.7) into integers (e.g., 2).
-        # gap_matrix_batch is a List[List[List[int]]]
-        gap_matrix_batch = self.agent.actor.adapter.decode(
-            actions_cpu  # decode now only needs the tensor
-        )
-
-        # B. Evaluate Loop (CPU Bottleneck - iterates over generated samples)
-        for i in range(batch_size * self.group_size):
-            # Calculate which original sequence this sample belongs to
-            original_idx = i // self.group_size
-
-            # Retrieve specific problem instance (Raw DNA)
-            current_raw_seqs = raw_sequences[original_idx]
-
-            # Retrieve the specific action (Gap Matrix)
-            current_gap_matrix = gap_matrix_batch[i]
-
-            # Instantiate Stateless Environment with the raw DNA
-            env = Environment(current_raw_seqs, mode=self.env_mode)
-
-            # === CORE CALL ===
-            # The Env reconstructs the alignment by merging DNA + Gap Matrix
-            # and calculates the scores.
-            score, aligned_seqs_debug, metrics = env.evaluate(current_gap_matrix)
-            # =================
-
-            rewards.append(score)
-
-            # Store metrics for averaging later
-            for k, v in metrics.items():
-                metrics_history[k].append(v)
-
-        # Convert rewards to tensor for PyTorch operations
-        rewards = torch.tensor(rewards, device=self.device, dtype=torch.float32)
-
-        # 6. GRPO Advantage Calculation (Z-Score Normalization)
-        # Reshape to (Batch, Group) to compare samples against their own group
+        # 4. GRPO Advantage Calculation
+        # We normalize rewards within each group to reduce variance.
+        # Shape: (Batch, Group)
         rewards_grouped = rewards.view(batch_size, self.group_size)
 
-        # Calculate Group Mean and Std
+        # Calculate Group Stats
         group_mean = rewards_grouped.mean(dim=1, keepdim=True)
         group_std = rewards_grouped.std(dim=1, keepdim=True) + 1e-8
 
-        # Advantage = (Reward - GroupMean) / GroupStd
-        # This encourages the model to prefer actions that are better than the average of its own attempts.
+        # Advantage = Z-Score of the reward within its own group
         advantages = (rewards_grouped - group_mean) / group_std
-        advantages = advantages.view(-1).detach()  # Flatten back
 
-        # 7. Optimization
-        # GRPO Loss = - (Advantage * Log_Prob)
-        grpo_loss = - (advantages * log_probs).mean()
+        # Flatten back to match the flat batch structure: (Batch * Group)
+        advantages = advantages.view(-1)
 
-        # Entropy Loss
-        weighted_entropy, mean_entropy = self._compute_masked_entropy(dist, mask)
+        # =====================================================================
+        # PHASE 2: OPTIMIZATION LOOP (PPO UPDATE)
+        # We update the policy multiple times using the collected experience.
+        # =====================================================================
 
-        # Final Loss
-        loss = grpo_loss - weighted_entropy
+        total_loss = 0.0
+        total_entropy = 0.0
 
-        self.agent.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.agent.actor.parameters(), 1.0)
-        self.agent.optimizer.step()
+        for _ in range(self.grpo_epochs):
+            # A. Forward Pass (New Policy)
+            # The network weights have ostensibly changed (or will change),
+            # so we get the 'New' distribution for the SAME state.
+            new_dist = self.agent.actor.get_distribution(state_repeated)
 
-        # 8. Logging to TensorBoard
-        # We average the metrics over the batch
-        avg_metrics = {k: np.mean(v) for k, v in metrics_history.items()}
+            # B. New Log Probs
+            # We evaluate the probability of the *originally sampled actions* # under the *current/new* policy.
+            new_log_probs_raw = new_dist.log_prob(actions_float)
+            new_log_probs = (new_log_probs_raw * mask).sum(dim=[1, 2])
+
+            # C. Ratio Calculation (Importance Sampling)
+            # Ratio = P_new / P_old
+            # Computed in log space for numerical stability: exp(log_new - log_old)
+            ratio = torch.exp(new_log_probs - old_log_probs)
+
+            # D. PPO Clipping Logic (Surrogate Objective)
+            # 1. Unclipped Objective: Ratio * Advantage
+            surr1 = ratio * advantages
+
+            # 2. Clipped Objective: Clamp Ratio to [1-eps, 1+eps] * Advantage
+            surr2 = torch.clamp(ratio, 1.0 - self.clip_eps, 1.0 + self.clip_eps) * advantages
+
+            # 3. Maximize the lower bound (conservative update)
+            # Since we minimize loss, we take negative of the minimum.
+            ppo_loss = -torch.min(surr1, surr2).mean()
+
+            # E. Entropy Regularization
+            # Encourage exploration by maximizing entropy of the NEW distribution
+            weighted_entropy, mean_entropy = self._compute_masked_entropy(new_dist, mask)
+
+            # F. Total Loss
+            loss = ppo_loss - weighted_entropy
+
+            # G. Backpropagation
+            self.agent.optimizer.zero_grad()
+            loss.backward()
+
+            # Gradient Clipping (Prevents exploding gradients)
+            torch.nn.utils.clip_grad_norm_(self.agent.actor.parameters(), 1.0)
+
+            self.agent.optimizer.step()
+
+            # Accumulate stats for averaging
+            total_loss += loss.item()
+            total_entropy += mean_entropy.item()
+
+        # =====================================================================
+        # 3. METRICS AGGREGATION
+        # =====================================================================
+
+        # Average metrics over the PPO epochs
+        avg_loss = total_loss / self.grpo_epochs
+        avg_entropy = total_entropy / self.grpo_epochs
 
         return {
-            'loss': loss.item(),
-            'loss_grpo': grpo_loss.item(),
-            'entropy': mean_entropy.item(),
+            'loss': avg_loss,
+            'entropy': avg_entropy,
             'avg_reward': rewards.mean().item(),
             'max_reward': rewards.max().item(),
-            'SP_Score': avg_metrics['SP'],
-            'CS_Percent': avg_metrics['CS'],
-            'Exact_Matches': avg_metrics['EM']
+            'SP_Score': metrics['SP'],  # From the last evaluation pass
+            'CS_Percent': metrics['CS'],
+            'Alignment_Len': metrics['AL']
         }

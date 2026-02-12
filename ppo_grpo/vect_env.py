@@ -16,7 +16,7 @@ class VectorizedEnvironment:
     - **Broadcasting:** Scoring compares all rows against all rows simultaneously.
     """
 
-    def __init__(self, config, device: torch.device):
+    def __init__(self, config, device: torch.device | str):
         """
         Args:
             config: Configuration object containing token IDs and reward weights.
