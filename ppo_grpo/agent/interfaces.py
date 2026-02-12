@@ -45,7 +45,7 @@ class IMSAOutputAdapter(ABC):
     def decode(self,
                actions: torch.Tensor) -> list[list[list[int]]]:
         """
-        Reconstructs the final alignment based on the actions.
+        Reconstructs the final gap matrix based on the actions.
 
         Args:
             actions: Tensor of shape (Batch, Rows, Len) containing integer decisions.

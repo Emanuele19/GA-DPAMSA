@@ -1,6 +1,3 @@
-import torch
-import numpy as np
-from typing import List, Tuple, Dict, Union
 import config
 
 
@@ -22,7 +19,7 @@ class Environment:
         mode (str): The primary objective for reward calculation ('sp' or 'cs').
     """
 
-    def __init__(self, raw_sequences: List[List[int]], mode: str = 'sp'):
+    def __init__(self, raw_sequences: list[list[int]], mode: str = 'sp'):
         """
         Initializes the environment with a specific problem instance (a set of sequences).
 
@@ -49,7 +46,7 @@ class Environment:
     # 1. CORE LOGIC: Reconstruction (Physics Engine)
     # =========================================================================
 
-    def reconstruct_alignment(self, gap_matrix: List[List[int]]) -> List[List[int]]:
+    def reconstruct_alignment(self, gap_matrix: list[list[int]]) -> list[list[int]]:
         """
         Deterministically builds the aligned sequences based on the agent's action.
 
@@ -105,7 +102,7 @@ class Environment:
     # 2. METRICS: Scoring (The Judge)
     # =========================================================================
 
-    def _calc_column_sp_score(self, column: List[int]) -> float:
+    def _calc_column_sp_score(self, column: list[int]) -> float:
         """
         Calculates the Sum-of-Pairs (SP) score for a single column.
 
@@ -134,7 +131,7 @@ class Environment:
 
         return score
 
-    def calculate_metrics(self, aligned_seqs: List[List[int]]) -> Dict[str, float]:
+    def calculate_metrics(self, aligned_seqs: list[list[int]]) -> dict[str, float]:
         """
         Computes comprehensive biological metrics for the alignment.
 
@@ -193,7 +190,7 @@ class Environment:
     # 3. PUBLIC INTERFACE
     # =========================================================================
 
-    def evaluate(self, gap_matrix: List[List[int]]) -> Tuple[float, List[List[int]], Dict[str, float]]:
+    def evaluate(self, gap_matrix: list[list[int]]) -> tuple[float, list[list[int]], dict[str, float]]:
         """
         The main entry point for the Trainer.
         Executes the full pipeline: Reconstruction -> Scoring -> Metrics.
@@ -214,7 +211,6 @@ class Environment:
 
         # 3. Select Reward Signal
         # We usually optimize for SP, but we return other metrics for monitoring.
-        reward = 0.0
         if self.mode == 'sp':
             reward = metrics["SP"]
         elif self.mode == 'cs':
