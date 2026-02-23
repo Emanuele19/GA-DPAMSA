@@ -27,7 +27,7 @@ def split_h5_dataset(input_path: str, split_ratio: float = 0.8, seed: int = 42):
 
     random.seed(seed)
     
-    # I file di output verranno salvati nella stessa directory del file di input
+    # Output files will be saved in the same directory as the input file
     output_dir = os.path.dirname(input_path)
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     train_output_path = os.path.join(output_dir, f"{base_name}_train.h5")
@@ -39,7 +39,7 @@ def split_h5_dataset(input_path: str, split_ratio: float = 0.8, seed: int = 42):
     print(f"  - Report:             {split_ratio*100:.0f}% train / {(1-split_ratio)*100:.0f}% test")
 
     with h5py.File(input_path, 'r') as hf:
-        # Assumiamo che i dati siano nel dataset 'alignments'
+        # Assuming data is in the 'alignments' dataset
         if 'alignments' not in hf:
             raise KeyError("'alignments' not found in the HDF5 file.")
             
@@ -48,38 +48,38 @@ def split_h5_dataset(input_path: str, split_ratio: float = 0.8, seed: int = 42):
         item_shape = dset.shape[1:]
         dtype = dset.dtype
 
-        # Genera una lista di indici e mescolala
+        # Generate a list of indices and shuffle it
         indices = list(range(num_items))
         random.shuffle(indices)
 
-        # Calcola il punto di divisione e separa gli indici
+        # Calculate the split point and separate indices
         split_point = int(num_items * split_ratio)
         train_indices = indices[:split_point]
         test_indices = indices[split_point:]
 
-        # Ordina gli indici per una lettura più efficiente dal disco
+        # Sort indices for more efficient disk reading
         train_indices.sort()
         test_indices.sort()
 
-        # Crea il file HDF5 per il set di addestramento
+        # Create HDF5 file for the training set
         with h5py.File(train_output_path, 'w') as train_hf:
             train_dset = train_hf.create_dataset(
                 'alignments', 
                 shape=(len(train_indices), *item_shape), 
                 dtype=dtype,
-                chunks=dset.chunks # Mantiene la stessa struttura di chunking per efficienza
+                chunks=dset.chunks # Maintains the same chunking structure for efficiency
             )
-            # Copia i dati usando gli indici
+            # Copy data using indices
             for i, original_idx in enumerate(tqdm(train_indices, desc="Writing the training set...")):
                 train_dset[i] = dset[original_idx]
         
-        # Crea il file HDF5 per il set di test
+        # Create HDF5 file for the test set
         with h5py.File(test_output_path, 'w') as test_hf:
             test_dset = test_hf.create_dataset(
                 'alignments', 
                 shape=(len(test_indices), *item_shape), 
                 dtype=dtype,
-                chunks=dset.chunks # Mantiene la stessa struttura di chunking
+                chunks=dset.chunks # Maintains the same chunking structure
             )
             for i, original_idx in enumerate(tqdm(test_indices, desc="Writing the test set...")):
                 test_dset[i] = dset[original_idx]
@@ -103,7 +103,7 @@ def main():
     try:
         split_h5_dataset(args.input_file, args.ratio, args.seed)
     except (FileNotFoundError, ValueError, KeyError) as e:
-        print(f"Errore: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
