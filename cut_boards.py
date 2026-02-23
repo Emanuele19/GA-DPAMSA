@@ -79,13 +79,13 @@ def main():
         ResolveAmbiguities(),
         RemoveDuplicates(),
         RandomCutSequence(k=300, h=100),
-        ReplaceCharacters({'N': '-'})
+        ReplaceCharacters({'N': config.GAP_CHARACTER})
     ])
 
     basic_preparation(RAW_DIR, PREPARED_DIR)
     # 1. Define Transforms
     augmentation = Compose([
-        LeftGapPad(max_shift=5, gap="-"),
+        LeftGapPad(max_shift=5, gap=config.GAP_CHARACTER),
         RandomGapInsertion(avoid_existing_gaps=True, p=0.02)
     ])
 

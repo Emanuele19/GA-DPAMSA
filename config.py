@@ -19,10 +19,11 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # ===========================
 # Nucleotide Encoding
 # ===========================
-NUCLEOTIDE_ENCODING = {'A': 0, 'C': 1, 'G': 2, 'T': 3, '-': 4, 'P': 5, 'N': 4,
-                       'a': 0, 'c': 1, 'g': 2, 't': 3, '-': 4, 'p': 5, 'n': 4}
+GAP_CHARACTER = '-'
+NUCLEOTIDE_ENCODING = {'P': 0, 'A': 1, 'T': 2, 'C': 3, 'G': 4, GAP_CHARACTER: 5, 'N': 6,
+                       'p': 0, 'a': 1, 't': 2, 'c': 3, 'g': 4, GAP_CHARACTER: 5, 'n': 6}
 
-NUCLEOTIDE_DECODING = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: '-', 5: 'P'}
+NUCLEOTIDE_DECODING = {0: 'P', 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_CHARACTER}
 
 
 
