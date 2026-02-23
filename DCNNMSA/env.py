@@ -6,15 +6,18 @@ import config
 from dataset_module.encoding import SequenceDecoder
 
 class Environment:
-    def __init__(self, input_tensor: torch.Tensor | np.ndarray, fixed_size: int = 30, gap_idx: int = 4, pad_idx: int = 5):
+    def __init__(self, input_tensor: torch.Tensor | np.ndarray, 
+                 fixed_size: int = 30, 
+                 gap: str = config.GAP_CHARACTER,
+                 pad: str = config.PAD_CHARACTER):
         
         if isinstance(input_tensor, np.ndarray):
             input_tensor = torch.from_numpy(input_tensor)
         
         self.N, self.L = input_tensor.shape
         self.fixed_size = fixed_size
-        self.gap_idx = gap_idx
-        self.pad_idx = pad_idx
+        self.gap_idx = config.NUCLEOTIDE_ENCODING[gap]
+        self.pad_idx = config.NUCLEOTIDE_ENCODING[pad]
 
         # Il reward si accumula per ogni episodio in due modi:
         # 1. Come somma di reward a coppie di nucleotidi nella colonna corrente
