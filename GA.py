@@ -32,9 +32,7 @@ Key Features:
 Author: https://github.com/FLaTNNBio/GA-DPAMSA
 """
 
-# Map nucleotide characters to numerical values (gaps are represented by 5)
-#nucleotides_map = {'A': 1, 'T': 2, 'C': 3, 'G': 4, 'a': 1, 't': 2, 'c': 3, 'g': 4, '-': 5,'N':6, 'n':6}
-# nucleotides_map = config.NUCLEOTIDE_ENCODING
+GAP_IDX = config.NUCLEOTIDE_ENCODING[config.GAP_CHARACTER]
 
 class GA:
     def __init__(self, sequences, mode):
@@ -93,7 +91,7 @@ class GA:
                 # Insert gaps at random positions
                 for _ in range(num_gaps):
                     gap_pos = random.randint(0, len(modified_seq) - 1)
-                    modified_seq.insert(gap_pos, 5)  # Insert gap (5)
+                    modified_seq.insert(gap_pos, GAP_IDX)  # Insert gap (5)
                 modified_individual.append(modified_seq)
 
             self.population.append(modified_individual)
@@ -164,10 +162,10 @@ class GA:
 
             # Pad each sequence to ensure all have equal length (using gap value 5).
             for gene in chromosome:
-                gene.extend([5] * (max_length - len(gene)))  # Extend with gaps instead of a loop
+                gene.extend([GAP_IDX] * (max_length - len(gene)))  # Extend with gaps instead of a loop
 
             # Clean columns that contain only gaps.
-            utils.clean_unnecessary_gaps(chromosome)
+            # utils.clean_unnecessary_gaps(chromosome)
             max_length = max(map(len, chromosome))  # Recompute length after cleaning
 
             # Compute fitness scores based on the current mode.
@@ -349,13 +347,13 @@ class GA:
 
             # Ensure the extracted sub-board meets the required dimensions for the RL agent.
             while len(row_genes) < config.AGENT_WINDOW_ROW:
-                row_genes.append([5] * config.AGENT_WINDOW_COLUMN)  # Fill missing rows with gaps (5)
+                row_genes.append([GAP_IDX] * config.AGENT_WINDOW_COLUMN)  # Fill missing rows with gaps (5)
 
             # For each row, extract and pad the sub-region.
             for genes in row_genes:
                 sub_genes = genes[from_column:to_column]
                 while len(sub_genes) < config.AGENT_WINDOW_COLUMN:
-                    sub_genes.append(5)  # Fill missing columns with gaps (5)
+                    sub_genes.append(GAP_IDX)  # Fill missing columns with gaps (5)
                 sub_board.append(sub_genes)
 
             # Create an Environment for the sub-board and load the RL agent.
