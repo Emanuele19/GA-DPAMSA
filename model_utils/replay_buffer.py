@@ -13,16 +13,14 @@ class ReplayBuffer:
         self.buffer.append((s, a, r, s_next, done))
 
     def sample(self, batch_size: int, device: torch.device) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Estrae un batch di esperienze e le converte in tensori pronti per il device."""
         batch = random.sample(self.buffer, batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
 
-        # Creazione dei tensori direttamente sul device per evitare passaggi CPU -> GPU multipli
         states_t = torch.stack(states).to(device)
-        actions_t = torch.tensor(actions, dtype=torch.long).unsqueeze(1).to(device)
-        rewards_t = torch.tensor(rewards, dtype=torch.float).to(device)
+        actions_t = torch.stack(actions).to(device) 
+        rewards_t = torch.tensor(rewards, dtype=torch.float, device=device).unsqueeze(1)
         next_states_t = torch.stack(next_states).to(device)
-        dones_t = torch.tensor(dones, dtype=torch.bool).to(device)
+        dones_t = torch.tensor(dones, dtype=torch.bool, device=device).unsqueeze(1)
 
         return states_t, actions_t, rewards_t, next_states_t, dones_t
 
