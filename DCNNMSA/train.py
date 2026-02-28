@@ -145,8 +145,7 @@ def fill_buffer(agent: DQNAgent, dataset: MSADataset, fixed_size: int, min_size:
             warmup_iter = iter(dataset)
             alignment = next(warmup_iter)
             
-        env = Environment(alignment.sequences, fixed_size=fixed_size,
-                          gap_idx=gap_idx, pad_idx=pad_idx)
+        env = Environment(alignment.sequences, fixed_size=fixed_size)
         state = env.reset()
         done = False
         while not done and len(agent.memory) < min_size:

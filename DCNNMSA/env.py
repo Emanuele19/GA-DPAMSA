@@ -37,7 +37,6 @@ class Environment:
 
         self.current_state = None
         self.done = False
-        self.action_number = 2**self.N - 1
         self.history = [] 
 
     def reset(self) -> torch.Tensor:
