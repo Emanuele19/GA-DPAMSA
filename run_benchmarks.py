@@ -24,10 +24,11 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # Dataset and Model Configuration
 # ===========================
 
-DATASET_NAME = 'synthetic_dataset_3x30bp'
+BASE_DS_NAME = 'hdf5_3x30_test_50'
+DATASET_NAME = f'orthodb_v12/{BASE_DS_NAME}'
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
-DCNNMSA_MODEL = 'msa_model_ep19000.pth'
+DCNNMSA_MODEL = 'new_model(18k).pth'
 
 encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 
@@ -130,7 +131,7 @@ def main():
             tools = list(config.TOOLS.keys())
             for tool_name in tools:
                 jobs.append(
-                    executor.submit(_run_external_tool, tool_name, file_paths, DATASET_NAME)
+                    executor.submit(_run_external_tool, tool_name, file_paths, BASE_DS_NAME)
                 )
 
         # Progress tracking
@@ -140,6 +141,7 @@ def main():
 
     # Generate performance plots for the selected tools
     utils.plot_metrics(tool_csv_paths, DATASET_NAME)
+    print("plotted")
 
 
 if __name__ == "__main__":
