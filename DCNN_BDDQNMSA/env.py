@@ -27,6 +27,9 @@ class Environment:
         # Va fratto al reward nella funzione di calcolo dei reward
         num_pairs = self.N * (self.N - 1) // 2
         self.reward_scaling_factor = 1.0 / (num_pairs * config.MATCH_REWARD)
+
+        # Twice the worst SP penalty
+        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 2
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
@@ -72,12 +75,18 @@ class Environment:
             self.history.append(aligned_column)
 
         self.current_state = next_state
-        reward = self._calc_sp_reward(aligned_column)
+
+        non_pad_elements = [v for v in aligned_column if v != self.pad_idx]
+        all_gaps_column = all(c == self.gap_idx for c in non_pad_elements)
+        if all_gaps_column:
+            reward = self.all_gaps_penalty
+        else:
+            reward = self._calc_sp_reward(aligned_column)
         
         if torch.all(self.current_state == self.pad_idx):
             self.done = True
             
-        return self.current_state, reward, self.done
+        return self.current_state, reward, self.done, all_gaps_column
 
     def get_alignment(self) -> List[List[int]]:
         """
