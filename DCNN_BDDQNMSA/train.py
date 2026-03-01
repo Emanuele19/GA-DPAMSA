@@ -156,7 +156,7 @@ def fill_buffer(agent: DQNAgent, dataset: MSADataset, fixed_size: int, min_size:
         done = False
         while not done and len(agent.memory) < min_size:
             action = agent.select_action(state) 
-            next_state, reward, done = env.step(action)
+            next_state, reward, done, _ = env.step(action)
             agent.store_transition(state, action, reward, next_state, done)
             state = next_state
             pbar.update(1)
