@@ -29,7 +29,7 @@ class Environment:
         self.reward_scaling_factor = 1.0 / (num_pairs * config.MATCH_REWARD)
 
         # Twice the worst SP penalty
-        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 2
+        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 10
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
