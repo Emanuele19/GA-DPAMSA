@@ -138,6 +138,7 @@ def train():
     logger.info(f"\nTraining completato. Eseguiti {episode} episodi.")
 
 def fill_buffer(agent: DQNAgent, dataset: MSADataset, fixed_size: int, min_size: int):
+    """Fills the replay buffer initial experiences made with random actions."""
     logger.info(f"Inizio Warm-up (Target: {min_size} esperienze)...")
     pbar = tqdm(total=min_size, desc="Filling Buffer")
     
@@ -155,7 +156,7 @@ def fill_buffer(agent: DQNAgent, dataset: MSADataset, fixed_size: int, min_size:
         state = env.reset()
         done = False
         while not done and len(agent.memory) < min_size:
-            action = agent.select_action(state) 
+            action = agent.random_legal_action()
             next_state, reward, done, _ = env.step(action)
             agent.store_transition(state, action, reward, next_state, done)
             state = next_state
