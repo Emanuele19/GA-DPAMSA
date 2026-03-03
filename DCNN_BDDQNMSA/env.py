@@ -28,8 +28,8 @@ class Environment:
         num_pairs = self.N * (self.N - 1) // 2
         self.reward_scaling_factor = 1.0 / (num_pairs * config.MATCH_REWARD)
 
-        # Twice the worst SP penalty
-        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 10
+        # Multiply the worst SP penalty by the constant used below
+        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 5
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
@@ -48,9 +48,9 @@ class Environment:
         self.history = [] # Reset della memoria ad ogni nuovo episodio
         return self.current_state
 
-    def step(self, action: int) -> Tuple[torch.Tensor, float, bool]:
+    def step(self, action: int, is_inference=False) -> Tuple[torch.Tensor, float, bool]:
         if self.done:
-            return self.current_state, 0.0, True
+            return self.current_state, 0.0, True, False
 
         # 1. Identifichiamo i valori della colonna 0
         original_column = self.current_state[:, 0].tolist()
@@ -83,8 +83,11 @@ class Environment:
         else:
             reward = self._calc_sp_reward(aligned_column)
         
-        if torch.all(self.current_state == self.pad_idx) or all_gaps_column:
+        if torch.all(self.current_state == self.pad_idx):
             self.done = True
+
+        if not is_inference:
+            self.done = self.done or all_gaps_column
             
         return self.current_state, reward, self.done, all_gaps_column
 
