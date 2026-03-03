@@ -83,7 +83,7 @@ class Environment:
         else:
             reward = self._calc_sp_reward(aligned_column)
         
-        if torch.all(self.current_state == self.pad_idx):
+        if torch.all(self.current_state == self.pad_idx) or all_gaps_column:
             self.done = True
             
         return self.current_state, reward, self.done, all_gaps_column
