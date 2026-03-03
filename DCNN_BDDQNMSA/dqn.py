@@ -43,6 +43,33 @@ class DQNAgent:
             # .squeeze(0) removes the batch dimension, making an (N) tensor
             actions = q_values.argmax(dim=2).squeeze(0)
             return actions
+        
+    def predict(self, state: torch.Tensor) -> torch.Tensor:
+        """
+        Used for inference. Returns the best action given a state.
+        Also prevents the agents from choosing to insert a column 
+        of all gaps
+        """
+        with torch.no_grad():
+            state_input = state.unsqueeze(0).to(self.device)
+            q_values = self.policy_net(state_input)
+            actions = q_values.argmax(dim=2).squeeze(0)
+
+            # If all gaps, find the best flip in branches and flip.
+            if torch.all(actions == 1):
+                q_diffs = q_values[0, :, 1] - q_values[0, :, 0]
+                best_branch_to_flip = torch.argmin(q_diffs)
+                actions[best_branch_to_flip] = 0
+            return actions
+        
+    def random_legal_action(self) -> torch.Tensor:
+        """Returns a random legal (not all gaps) action"""
+        action = torch.randint(0, 2, (self.n_sequences,), device=self.device)
+        while torch.all(action == 1):
+            action = torch.randint(0, 2, (self.n_sequences,), device=self.device)
+
+        return action
+    
 
     def store_transition(self, s: torch.Tensor, a: int, r: float, s_next: torch.Tensor, done: bool) -> None:
         """Invia l'esperienza al Replay Buffer."""
