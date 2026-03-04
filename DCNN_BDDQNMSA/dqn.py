@@ -75,9 +75,14 @@ class DQNAgent:
         """Invia l'esperienza al Replay Buffer."""
         self.memory.push(s, a, r, s_next, done)
 
+    # def update_epsilon(self) -> None:
+    #     """Riduce il fattore di esplorazione."""
+    #     self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+
     def update_epsilon(self) -> None:
-        """Riduce il fattore di esplorazione."""
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        # Riduce epsilon di una quota fissa ogni episodio
+        # Esempio: raggiunge il minimo in 20.000 episodi
+        self.epsilon = max(self.epsilon_min, self.epsilon - (0.95 - 0.05) / 20000)
 
     def learn(self, batch_size: int = 64) -> Optional[tuple]:
         if len(self.memory) < batch_size:
