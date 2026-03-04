@@ -79,15 +79,15 @@ class Environment:
         non_pad_elements = [v for v in aligned_column if v != self.pad_idx]
         all_gaps_column = all(c == self.gap_idx for c in non_pad_elements)
         if all_gaps_column:
-            reward = self.all_gaps_penalty
+            reward = self.all_gaps_penalty - config.TIME_PENALTY
         else:
-            reward = self._calc_sp_reward(aligned_column)
+            reward = self._calc_sp_reward(aligned_column) - config.MICROTIME_PENALTY
         
         if torch.all(self.current_state == self.pad_idx):
             self.done = True
 
-        if not is_inference:
-            self.done = self.done or all_gaps_column
+        # if not is_inference:
+        #     self.done = self.done or all_gaps_column
             
         return self.current_state, reward, self.done, all_gaps_column
 

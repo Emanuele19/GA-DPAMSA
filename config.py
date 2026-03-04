@@ -34,6 +34,8 @@ NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_
 GAP_PENALTY = -4  # Penalty for inserting a gap
 MISMATCH_PENALTY = -4  # Penalty for a mismatch
 MATCH_REWARD = 4  # Reward for a correct match
+TIME_PENALTY = -0.1 # Penalty for time passing. To avoid stalls.
+MICROTIME_PENALTY = TIME_PENALTY / 10 # Changes the Q values by a small amount to avoid persistent actions
 MAX_EPISODE = 20000  # Maximum number of training episodes
 BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
@@ -164,5 +166,35 @@ TOOLS = {
         'command': lambda file_path, output_dir: ['run_pasta.py', '-i', file_path, '-o', output_dir],
         'output_dir': os.path.join(TOOLS_OUTPUT_PATH, 'PASTA'),
         'report_dir': os.path.join(REPORTS_PATH, 'PASTA')
+    }
+}
+
+# ===========================
+# Models Configuration
+# ===========================
+MODELS = {
+    "GA-DPAMSA": {
+        "model_path": "model_3x30",
+        "report_path": GA_DPAMSA_REPORTS_PATH,
+        "csv_path": GA_DPAMSA_INF_CSV_PATH,
+        "requires_dataset_object": True
+    },
+    "DPAMSA": {
+        "model_path": "model_3x30",
+        "report_path": DPAMSA_REPORTS_PATH,
+        "csv_path": DPAMSA_INF_CSV_PATH,
+        "requires_dataset_object": True
+    },
+    "DCNNMSA": {
+        "model_path": os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights', 'old_model(19k).pth'),
+        "report_path": os.path.join(REPORTS_PATH, 'DCNNMSA'),
+        "csv_path": os.path.join(INFERENCE_CSV_PATH, 'DCNNMSA'),
+        "requires_dataset_object": False
+    },
+    "DCNN_BDDQNMSA": {
+        "model_path": os.path.join(PROJECT_ROOT, 'DCNN_BDDQNMSA', 'weights', 'msa_model_ep18999.pth'),
+        "report_path": os.path.join(REPORTS_PATH, 'DCNN_BDDQNMSA'),
+        "csv_path": os.path.join(INFERENCE_CSV_PATH, 'DCNN_BDDQNMSA'),
+        "requires_dataset_object": False
     }
 }
