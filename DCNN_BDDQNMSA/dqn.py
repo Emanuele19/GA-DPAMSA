@@ -120,7 +120,7 @@ class DQNAgent:
                 total_norm += param_norm.item() ** 2
         total_norm = total_norm ** 0.5
 
-        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=0.1)
         self.optimizer.step()
     
         return loss.item(), total_norm, current_q.mean().item(), v_val, a_val
