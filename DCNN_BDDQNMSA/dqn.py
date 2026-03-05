@@ -30,7 +30,7 @@ class DQNAgent:
         self.memory: ReplayBuffer = ReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
 
         # Pre-allocated for performances
-        self.all_gaps_tensor = torch.ones(self.n_sequences, device=self.device)
+        self.all_gaps_tensor = torch.ones(self.n_sequences, device=self.device, dtype=torch.long)
 
 
     # def select_action(self, state: torch.Tensor) -> torch.Tensor:
