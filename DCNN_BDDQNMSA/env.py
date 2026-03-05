@@ -73,7 +73,7 @@ class Environment:
 
         self.current_state = next_state
 
-        is_stalling_action = all(c == self.pad_idx for c in action)
+        is_stalling_action = all(c == 1 for c in action)
         if is_stalling_action:
             worst_sp = config.GAP_PENALTY * self.num_pairs
             reward = worst_sp * config.PENALTY_MULTIPLIER + config.TIME_PENALTY
