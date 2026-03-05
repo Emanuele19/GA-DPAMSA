@@ -31,16 +31,18 @@ NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_
 # ===========================
 # DPAMSA Hyperparameters
 # ===========================
-GAP_PENALTY = -4  # Penalty for inserting a gap
-MISMATCH_PENALTY = -4  # Penalty for a mismatch
-MATCH_REWARD = 4  # Reward for a correct match
+GAP_PENALTY = -3  # Penalty for inserting a gap
+MISMATCH_PENALTY = -2  # Penalty for a mismatch
+MATCH_REWARD = 5  # Reward for a correct match
 TIME_PENALTY = -0.2 # Penalty for time passing. To avoid stalls.
 MICROTIME_PENALTY = TIME_PENALTY / 10 # Changes the Q values by a small amount to avoid persistent actions
+PENALTY_MULTIPLIER = 1.5 # For VERY bad actions
 MAX_EPISODE = 20000  # Maximum number of training episodes
 BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 1e-5  # Learning rate for the optimizer
 EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
+MIN_EPSILON = 0.2  # Minimum epsilon value
 GAMMA = 0.90  # Discount factor for Q-learning
 EPSILON_DECAY = 0.9998  # Decay rate for epsilon (e_t = e_{t-1} * decay)
 UPDATE_ITERATION = 1000  # Number of iterations before updating the target network

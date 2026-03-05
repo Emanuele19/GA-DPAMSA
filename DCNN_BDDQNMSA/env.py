@@ -25,11 +25,8 @@ class Environment:
         # Qui sto scalando i reward per colonna perché lo step è fatto una
         # colonna alla volta. Lo scaling porta tutti i reward tra [-1 e 1]
         # Va fratto al reward nella funzione di calcolo dei reward
-        num_pairs = self.N * (self.N - 1) // 2
-        self.reward_scaling_factor = 1.0 / (num_pairs * config.MATCH_REWARD)
-
-        # Multiply the worst SP penalty by the constant used below
-        self.all_gaps_penalty = (config.GAP_PENALTY * num_pairs) * self.reward_scaling_factor * 5
+        self.num_pairs = self.N * (self.N - 1) // 2
+        self.reward_scaling_factor = 1.0 / (self.num_pairs * config.MATCH_REWARD)
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
@@ -77,11 +74,15 @@ class Environment:
         self.current_state = next_state
 
         non_pad_elements = [v for v in aligned_column if v != self.pad_idx]
-        all_gaps_column = all(c == self.gap_idx for c in non_pad_elements)
+        all_gaps_column = all(c == self.gap_idx for c in non_pad_elements) and len(non_pad_elements) > 0
         if all_gaps_column:
-            reward = self.all_gaps_penalty - config.TIME_PENALTY
+            worst_sp = config.GAP_PENALTY * self.num_pairs
+            reward = worst_sp * config.PENALTY_MULTIPLIER + config.TIME_PENALTY
         else:
-            reward = self._calc_sp_reward(aligned_column) - config.MICROTIME_PENALTY
+            reward = self._calc_sp_reward(aligned_column)
+            reward += config.MICROTIME_PENALTY
+
+        reward *= self.reward_scaling_factor
         
         if torch.all(self.current_state == self.pad_idx):
             self.done = True
@@ -116,14 +117,14 @@ class Environment:
         for i in range(self.N):
             for j in range(i + 1, self.N):
                 c1, c2 = column[i], column[j]
-                if c1 == self.pad_idx and c2 == self.pad_idx: continue
+                if c1 == self.pad_idx or c2 == self.pad_idx: continue
                 if c1 == self.gap_idx or c2 == self.gap_idx:
                     score += config.GAP_PENALTY
                 elif c1 == c2:
                     score += config.MATCH_REWARD
                 else:
                     score += config.MISMATCH_PENALTY
-        return score * self.reward_scaling_factor
+        return score
     
     def calculate_total_cs(self) -> float:
         """
