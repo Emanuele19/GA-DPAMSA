@@ -29,11 +29,35 @@ class DQNAgent:
         self.optimizer: optim.Adam = optim.Adam(self.policy_net.parameters(), lr=lr)
         self.memory: ReplayBuffer = ReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
 
+        # Pre-allocated for performances
+        self.all_gaps_tensor = torch.ones(self.n_sequences, device=self.device)
+
+
+    # def select_action(self, state: torch.Tensor) -> torch.Tensor:
+    #     """Epsilon-greedy che restituisce un vettore di azioni [N]."""
+    #     if random.random() < self.epsilon:
+    #         # Generates a random binary tensor.
+    #         return torch.randint(0, 2, (self.n_sequences,), device=self.device)
+        
+    #     with torch.no_grad():
+    #         state_input = state.unsqueeze(0).to(self.device) # (1, N, 30)
+    #         q_values = self.policy_net(state_input)          # (1, N, 2)
+            
+    #         # q_values is a (1, N, 2) tensor (batch_size, N, [base, gap])
+    #         # .argmax(dim=2) produces a (1, N) tensor
+    #         # .squeeze(0) removes the batch dimension, making an (N) tensor
+    #         actions = q_values.argmax(dim=2).squeeze(0)
+    #         return actions
+
+    # BIASED VERSION
     def select_action(self, state: torch.Tensor) -> torch.Tensor:
         """Epsilon-greedy che restituisce un vettore di azioni [N]."""
         if random.random() < self.epsilon:
             # Generates a random binary tensor.
-            return torch.randint(0, 2, (self.n_sequences,), device=self.device)
+            if random.random() < 0.99:
+                return self.random_legal_action()
+            else:
+                return self.all_gaps_tensor
         
         with torch.no_grad():
             state_input = state.unsqueeze(0).to(self.device) # (1, N, 30)
