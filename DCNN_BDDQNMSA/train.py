@@ -73,7 +73,7 @@ def train():
     # Trainining loop
     logger.info(f"\nInizio Addestramento su {num_episodes} file...")
     
-    all_gaps_col_count = 0
+    stalling_action_count = 0
 
     # Iteriamo direttamente sul dataset per il numero di episodi calcolato
     # Usiamo enumerate per tenere traccia del conteggio
@@ -91,9 +91,9 @@ def train():
         
         while not done:
             action = agent.select_action(state)
-            next_state, reward, done, all_gaps_col = env.step(action)
+            next_state, reward, done, stalling_action = env.step(action)
 
-            if all_gaps_col: all_gaps_col_count += 1
+            if stalling_action: stalling_action_count += 1
             
             agent.store_transition(state, action, reward, next_state, done)
             learn_result = agent.learn(config.BATCH_SIZE)
@@ -104,7 +104,7 @@ def train():
                 writer.add_scalar("Debug/Avg_Q_Value", avg_q, episode)
                 writer.add_scalar("Debug/V_State_Value", v_val, episode)
                 writer.add_scalar("Debug/A_Advantage_Spread", a_val, episode)
-                writer.add_scalar("Debug/All_Gaps_Column", all_gaps_col_count, episode)
+                writer.add_scalar("Debug/Stalling_action_count", stalling_action_count, episode)
             
             state = next_state
             episode_reward += reward

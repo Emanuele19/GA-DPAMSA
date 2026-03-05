@@ -73,9 +73,8 @@ class Environment:
 
         self.current_state = next_state
 
-        non_pad_elements = [v for v in aligned_column if v != self.pad_idx]
-        all_gaps_column = all(c == self.gap_idx for c in non_pad_elements) and len(non_pad_elements) > 0
-        if all_gaps_column:
+        is_stalling_action = all(c == self.pad_idx for c in action)
+        if is_stalling_action:
             worst_sp = config.GAP_PENALTY * self.num_pairs
             reward = worst_sp * config.PENALTY_MULTIPLIER + config.TIME_PENALTY
         else:
@@ -90,7 +89,7 @@ class Environment:
         # if not is_inference:
         #     self.done = self.done or all_gaps_column
             
-        return self.current_state, reward, self.done, all_gaps_column
+        return self.current_state, reward, self.done, is_stalling_action
 
     def get_alignment(self) -> List[List[int]]:
         """
