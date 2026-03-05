@@ -43,7 +43,7 @@ REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 1e-5  # Learning rate for the optimizer
 EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
 MIN_EPSILON = 0.2  # Minimum epsilon value
-GAMMA = 0.90  # Discount factor for Q-learning
+GAMMA = 0.95  # Discount factor for Q-learning
 EPSILON_DECAY = 0.9998  # Decay rate for epsilon (e_t = e_{t-1} * decay)
 UPDATE_ITERATION = 1000  # Number of iterations before updating the target network
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"  # Auto-detect GPU or CPU
