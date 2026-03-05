@@ -13,12 +13,13 @@ class DQNAgent:
     def __init__(self, n_sequences: int, vocab_size: int, 
                  lr: float = config.ALPHA, 
                  gamma: float = config.GAMMA, 
-                 epsilon_start: float = config.EPSILON):
+                 epsilon_start: float = config.EPSILON,
+                 epsilon_min: float = config.MIN_EPSILON):
         self.n_sequences: int = n_sequences
         self.gamma: float = gamma
         self.epsilon: float = epsilon_start
         self.epsilon_decay: float = config.EPSILON_DECAY
-        self.epsilon_min: float = 0.05
+        self.epsilon_min: float = epsilon_min
         self.device: torch.device = config.DEVICE
         
         self.policy_net: MSABranchingNet = MSABranchingNet(n_sequences, vocab_size).to(self.device)
@@ -82,7 +83,7 @@ class DQNAgent:
     def update_epsilon(self) -> None:
         # Riduce epsilon di una quota fissa ogni episodio
         # Esempio: raggiunge il minimo in 20.000 episodi
-        self.epsilon = max(self.epsilon_min, self.epsilon - (0.95 - 0.05) / 20000)
+        self.epsilon = max(self.epsilon_min, self.epsilon - (config.EPSILON - self.epsilon_min) / config.MAX_EPISODE)
 
     def learn(self, batch_size: int = 64) -> Optional[tuple]:
         if len(self.memory) < batch_size:
