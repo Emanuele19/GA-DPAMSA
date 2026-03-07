@@ -144,9 +144,6 @@ class DQNAgent:
                 total_norm += param_norm.item() ** 2
         total_norm = total_norm ** 0.5
 
-        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=0.1)
-        self.optimizer.step()
-
         with torch.no_grad():
             v_grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.policy_net.value_head.parameters(), float('inf')
@@ -158,6 +155,9 @@ class DQNAgent:
                     head.parameters(), float('inf')
                 )
                 adv_grads.append(norm)
+
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=0.1)
+        self.optimizer.step()
 
         logging_metrics = {
             "Debug/Gradient_Norm": total_norm,
