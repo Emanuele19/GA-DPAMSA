@@ -137,6 +137,13 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
 
+        # Advantage head scaling
+        # This is because network is assigning low gradients to adavantage heads and high to the value head
+        for head in self.policy_net.advantage_heads:
+            for param in head.parameters():
+                if param.grad is not None:
+                    param.grad.data *= 10.0
+
         total_norm = 0.0
         for p in self.policy_net.parameters():
             if p.grad is not None:
