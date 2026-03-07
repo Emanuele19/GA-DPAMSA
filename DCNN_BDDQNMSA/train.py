@@ -98,12 +98,14 @@ def train():
             agent.store_transition(state, action, reward, next_state, done)
             learn_result = agent.learn(config.BATCH_SIZE)
             if learn_result:
-                loss, gradient_norm, avg_q, v_val, a_val = learn_result
+                loss, logging = learn_result
                 episode_loss.append(loss)
-                writer.add_scalar("Debug/Gradient_Norm", gradient_norm, episode)
-                writer.add_scalar("Debug/Avg_Q_Value", avg_q, episode)
-                writer.add_scalar("Debug/V_State_Value", v_val, episode)
-                writer.add_scalar("Debug/A_Advantage_Spread", a_val, episode)
+                for k,v in logging.items():
+                    if isinstance(v, list):
+                        for i, val in enumerate(v):
+                            writer.add_scalar(f"{k}_{i}", val, episode)
+                    else:
+                        writer.add_scalar(k, v, episode)
                 writer.add_scalar("Debug/Stalling_action_count", stalling_action_count, episode)
             
             state = next_state

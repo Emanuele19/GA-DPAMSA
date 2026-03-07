@@ -146,8 +146,29 @@ class DQNAgent:
 
         torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=0.1)
         self.optimizer.step()
+
+        with torch.no_grad():
+            v_grad_norm = torch.nn.utils.clip_grad_norm_(
+                self.policy_net.value_head.parameters(), float('inf')
+            )
+
+            adv_grads = []
+            for _, head in enumerate(self.policy_net.advantage_heads):
+                norm = torch.nn.utils.clip_grad_norm_(
+                    head.parameters(), float('inf')
+                )
+                adv_grads.append(norm)
+
+        logging_metrics = {
+            "Debug/Gradient_Norm": total_norm,
+            "Debug/Avg_Q_Value": current_q.mean().item(),
+            "Debug/V_State_Value": v_val,
+            "Debug/A_Advantage_Spread": a_val,
+            "Debug/V_Grad_Norm": v_grad_norm,
+            "Debug/A_Grad_Norm": adv_grads,
+        }
     
-        return loss.item(), total_norm, current_q.mean().item(), v_val, a_val
+        return loss.item(), logging_metrics
 
 
     def update_target_network(self) -> None:
