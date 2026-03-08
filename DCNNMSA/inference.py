@@ -9,7 +9,7 @@ from dataset_module import FastaDataset, SequenceEncoder, SequenceDecoder
 
 import config, csv
 
-def run_inference(model_path: str, data_folder: str, output_file: str, csv_file: str, n_seq: int = 3, vocab_size: int = 6):
+def run_inference(model_path: str, data_folder: str, n_seq: int = 3, vocab_size: int = 6):
     """
     Esegue l'inferenza caricando i file tramite FastaDataset e usando la classe FastaContent.
     """
@@ -49,39 +49,15 @@ def run_inference(model_path: str, data_folder: str, output_file: str, csv_file:
             metrics['aligned'] = env.get_alignment_as_strings(SequenceDecoder(config.NUCLEOTIDE_DECODING))
             inference_results.append(metrics)
 
-    # 4. Scrittura file di output
-    save_to_disk(inference_results, output_file, csv_file) 
-    print(f"\nInference completed successfully.")
-    print(f"Report saved at: {output_file}")
-    print(f"CSV saved at: {csv_file}\n\n")
+    return inference_results
 
-def save_to_disk(results: List[dict], output_path: str, csv_path: str):
-    with open(output_path, 'w') as f:
-        for res in results:
-            f.write(f"File: {res['name']}\n")
-            f.write(f"Number of Sequences (QTY): {res['QTY']}\n")
-            f.write(f"Alignment Length (AL): {res['AL']}\n")
-            f.write(f"Sum of Pairs (SP): {res['SP']}\n")
-            f.write(f"Exact Matches (EM): {res['EM']}\n")
-            f.write(f"Column Score (CS): {res['CS']:.3f}\n")
-            f.write("Alignment:\n")
-            for s in res['aligned']:
-                f.write(f"{s}\n")
-            f.write(f"\n")
-
-    with open(csv_path, 'w') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
-                         "Exact Matches (EM)", "Column Score (CS)"])
-        for res in results:
-            writer.writerow([res['name'], res['QTY'], res['AL'], res['SP'], res['EM'], res['CS']])
 
 if __name__ == "__main__":
+    from utils import save_to_disk
     csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
     out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
-    run_inference(
+    results = run_inference(
         model_path = os.path.join(config.MODEL_WEIGHTS_PATH, 'msa_model_ep19000.pth'),
-        data_folder = os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp'),
-        output_file = out_path,
-        csv_file = csv_path
+        data_folder = os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp')
     )
+    save_to_disk(results, out_path, csv_path)

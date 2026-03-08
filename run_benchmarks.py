@@ -29,6 +29,8 @@ DATASET_NAME = f'orthodb_v12/{BASE_DS_NAME}'
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
 DCNNMSA_MODEL = 'new_model(18k).pth'
+DCNN_BDDQNMSA_MODEL = 'msa_model_ep18999.pth'
+
 
 encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 
@@ -45,103 +47,121 @@ def _run_external_tool(tool_name, file_paths, dataset_name):
     Helper function executed in a separate process for each external tool.
     Returns (tool_name, csv_path).
     """
-    tool_results = utils.run_tool_and_generate_report(tool_name, file_paths, dataset_name)
-    csv_path = utils.save_inference_csv(tool_results, tool_name, dataset_name)
+    # This function now returns a list of dictionaries directly
+    tool_results = utils.run_tool_and_get_metrics(tool_name, file_paths, dataset_name)
+    
+    if not tool_results:
+        print(f"Warning: No results returned from {tool_name} for dataset {dataset_name}. Skipping file save.")
+        # Return a placeholder or handle it as an error
+        return tool_name, None
+
+    # Define paths for report and CSV
+    report_path = os.path.join(config.TOOLS[tool_name]['report_dir'], f"{dataset_name}.txt")
+    csv_path = os.path.join(config.TOOLS[tool_name]['report_dir'], f"{dataset_name}_{tool_name}_results.csv")
+
+    # Ensure directories exist
+    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    
+    # Save the results to disk (both .txt report and .csv)
+    utils.save_to_disk(tool_results, report_path, csv_path)
+    
     return tool_name, csv_path
 
 
-def _run_ga_dpamsa_worker(dataset_path, model_name):
+def _run_model_worker(model_name, dataset_path, inference_function, inference_params=None):
     """
-    Worker process for GA-DPAMSA.
+    Generic worker process for a model.
     """
-    dataset = FastaDataset(dataset_path, encoder=encoder)
-    csv_path = utils.run_ga_dpamsa_inference('sp', dataset, model_name)
-    return "GA-DPAMSA", csv_path
+    if inference_params is None:
+        inference_params = {}
+
+    model_config = config.MODELS[model_name]
+    model_path = model_config["model_path"]
+
+    if model_config["requires_dataset_object"]:
+        dataset = FastaDataset(dataset_path, encoder=encoder)
+        results = inference_function(dataset=dataset, model_path=model_path, **inference_params)
+    else:
+        results = inference_function(data_folder=dataset_path, model_path=model_path, **inference_params)
+
+    # Define paths for report and CSV using config
+    base_dataset_name = os.path.basename(dataset_path)
+    
+    if model_name == "GA-DPAMSA":
+        mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[inference_params.get("mode", "sp")]
+        report_path = os.path.join(model_config["report_path"], f"{base_dataset_name}_{mode_tag}.txt")
+        csv_path = os.path.join(model_config["csv_path"], f"{base_dataset_name}_{mode_tag}_GA_DPAMSA_results.csv")
+    else:
+        report_path = os.path.join(model_config["report_path"], f"{base_dataset_name}_{model_name}_results.txt")
+        csv_path = os.path.join(model_config["csv_path"], f"{base_dataset_name}_{model_name}_results.csv")
 
 
-def _run_dpamsa_worker(dataset_path, model_name):
-    """
-    Worker process for DPAMSA.
-    """
-    dataset = FastaDataset(dataset_path, encoder=encoder)
-    csv_path = utils.run_dpamsa_inference(dataset, model_name)
-    return "DPAMSA", csv_path
-
-
-def _run_dcnnmsa_worker(dataset_path, model_name):
-    """
-    Worker process for DCNNMSA.
-    """
-    dataset = FastaDataset(dataset_path, encoder=encoder)
-    from DCNNMSA.inference import run_inference
-
-    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
-    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
-    run_inference(
-        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, DCNNMSA_MODEL),
-        data_folder = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME),
-        csv_file = csv_path,
-        output_file = out_path
-    )
-    return "DCNNMSA", csv_path
+    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    
+    utils.save_to_disk(results, report_path, csv_path)
+    
+    return model_name, csv_path
 
 
 def main():
     """
     Main function to execute MSA benchmarking.
-
-    - Displays a selection menu for benchmarking options.
-    - Runs GA-DPAMSA inference (always executed).
-    - Runs DPAMSA inference if selected.
-    - Runs external MSA tools if selected (in parallelo).
-    - Saves results and generates performance plots.
     """
-    # Display selection menu
     choice = utils.display_menu()
 
-    # Paths
     dataset_folder = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME)
-    dataset_path = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME)
-    file_paths = [os.path.join(dataset_folder, file) for file in sorted(os.listdir(dataset_folder))]
+    file_paths = [os.path.join(dataset_folder, f) for f in sorted(os.listdir(dataset_folder))]
 
-    # Dictionary to store CSV paths for each tool
     tool_csv_paths = {}
-
-    # Costruiamo la lista di job da lanciare in parallelo
     jobs = []
 
+    # Map model names to their inference functions
+    from DCNNMSA.inference import run_inference as dcnn_inference
+    from DCNN_BDDQNMSA.inference import run_inference as dcnn_bddqn_inference
+    
+    inference_functions = {
+        "GA-DPAMSA": utils.run_ga_dpamsa_inference,
+        "DPAMSA": utils.run_dpamsa_inference,
+        "DCNNMSA": dcnn_inference,
+        "DCNN_BDDQNMSA": dcnn_bddqn_inference,
+    }
+
+    # Define which models to run based on user choice
+    models_to_run = ["GA-DPAMSA", "DCNNMSA", "DCNN_BDDQNMSA"]
+    if choice == 1 or choice == 3:
+        models_to_run.append("DPAMSA")
+
     with ProcessPoolExecutor() as executor:
-        # GA-DPAMSA
-        jobs.append(
-            executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)
-        )
-
-        jobs.append(
-            executor.submit(_run_dcnnmsa_worker, dataset_path, DCNNMSA_MODEL)
-        )
-
-        # DPAMSA if choice is 1 or 3
-        if choice == 1 or choice == 3:
+        # Submit model benchmarks
+        for model_name in models_to_run:
+            inference_params = {"mode": "sp"} if model_name == "GA-DPAMSA" else {}
             jobs.append(
-                executor.submit(_run_dpamsa_worker, dataset_path, DPAMSA_MODEL)
+                executor.submit(
+                    _run_model_worker,
+                    model_name,
+                    dataset_folder,
+                    inference_functions[model_name],
+                    inference_params
+                )
             )
 
-        # External tools for choice 2 or 3
+        # Submit external tool benchmarks
         if choice == 2 or choice == 3:
-            tools = list(config.TOOLS.keys())
-            for tool_name in tools:
+            for tool_name in config.TOOLS.keys():
                 jobs.append(
                     executor.submit(_run_external_tool, tool_name, file_paths, BASE_DS_NAME)
                 )
 
-        # Progress tracking
+        # Process results
         for future in tqdm(as_completed(jobs), total=len(jobs), desc="Running benchmarks"):
-            tool_name, csv_path = future.result()
-            tool_csv_paths[tool_name] = csv_path
+            name, csv_path = future.result()
+            tool_csv_paths[name] = csv_path
+            print(f"[DEBUG]: {name} completed")
 
-    # Generate performance plots for the selected tools
+    # Generate performance plots
     utils.plot_metrics(tool_csv_paths, DATASET_NAME)
-    print("plotted")
+    print("Plotted results.")
 
 
 if __name__ == "__main__":

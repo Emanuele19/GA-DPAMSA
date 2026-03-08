@@ -607,12 +607,12 @@ def display_menu():
             print("Invalid input. Please enter a number.")
 
 
-def run_tool_and_generate_report(tool_name, file_paths, dataset_name):
+def run_tool_and_get_metrics(tool_name, file_paths, dataset_name):
     """
-    Run an external MSA tool, process its alignment output, and generate a benchmarking report.
+    Run an external MSA tool, process its alignment output, and return benchmark metrics.
 
     This function executes the specified MSA tool on a set of FASTA files, extracts the
-    aligned sequences, computes evaluation metrics, and generates a report.
+    aligned sequences, computes evaluation metrics, and returns them.
 
     Parameters:
     -----------
@@ -622,145 +622,88 @@ def run_tool_and_generate_report(tool_name, file_paths, dataset_name):
 
     Returns:
     --------
-    - list of lists: A list containing alignment evaluation metrics for each processed file.
-
-    Each entry is a list with: [file_name, AL (Alignment Length), QTY (Number of Sequences), SP (Sum of Pairs Score), EM (Exact Matches), CS (Column Score)].
+    - list of dict: A list of dictionaries, each containing evaluation metrics for a file.
     """
     tool_info = config.TOOLS[tool_name]
-
-    # Create necessary directories for output and reports
-    os.makedirs(tool_info['output_dir'], exist_ok=True)
-    dataset_output_dir = os.path.join(tool_info['output_dir'], dataset_name)
+    
+    # Create a temporary directory for the tool's output files
+    dataset_output_dir = os.path.join(config.TOOLS_OUTPUT_PATH, tool_name, dataset_name)
     os.makedirs(dataset_output_dir, exist_ok=True)
-    os.makedirs(tool_info['report_dir'], exist_ok=True)
 
-    report_file = os.path.join(tool_info['report_dir'], f"{dataset_name}.txt")
-    csv_results = []
+    results = []
 
-    with open(report_file, 'w') as report:
-        for file_path in tqdm(file_paths, desc=f"Processing {tool_name}", leave=False):
-            file_name = os.path.basename(file_path)
-            file_name_no_ext = os.path.splitext(file_name)[0]
-            command = tool_info['command'](file_path, os.path.join(dataset_output_dir, file_name))
+    for file_path in tqdm(file_paths, desc=f"Processing {tool_name}", leave=False):
+        file_name = os.path.basename(file_path)
+        file_name_no_ext = os.path.splitext(file_name)[0]
+        output_file_path = os.path.join(dataset_output_dir, file_name)
+        command = tool_info['command'](file_path, output_file_path)
 
-            # Execute the tool's command
-            if tool_name == 'MAFFT':  # Tool specific execution
-                subprocess.run(command, shell=True, stderr=subprocess.DEVNULL, text=True)
+        # Execute the tool's command
+        try:
+            if tool_name == 'MAFFT':
+                # MAFFT requires shell=True and redirects output to a file
+                with open(output_file_path, 'w') as f_out:
+                    subprocess.run(command, shell=True, stdout=f_out, stderr=subprocess.DEVNULL, check=False)
             else:
-                subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                if tool_name == 'ClustalW':
+                    subprocess.run(command, shell=False, stdout=subprocess.PIPE, text=True, check=False)
+                else:
+                    subprocess.run(command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] Tool {tool_name} failed for file {file_name} with exit code {e.returncode}.")
+            continue
+            
+        # Adjust output path for tools that create subdirectories
+        if tool_name == 'UPP':
+            actual_output_path = os.path.join(output_file_path, "output_alignment.fasta")
+        elif tool_name == 'PASTA':
+            actual_output_path = os.path.join(output_file_path, f"pastajob.marker001.{file_name_no_ext}.aln")
+        else:
+            actual_output_path = output_file_path
 
-            # Handle specific output paths for UPP and PASTA
-            if tool_name == 'UPP':
-                output_path = os.path.join(dataset_output_dir, file_name, "output_alignment.fasta")
-            elif tool_name == 'PASTA':
-                output_path = os.path.join(dataset_output_dir, file_name, f"pastajob.marker001.{file_name_no_ext}.aln")
-            else:
-                output_path = os.path.join(dataset_output_dir, file_name)
+        # Read the tool's output
+        try:
+            with open(actual_output_path, 'r') as f:
+                fasta_content = f.read()
+        except FileNotFoundError:
+            print(f"[WARN] Output file not found for {tool_name} on file {file_name}. Skipping.")
+            continue
 
-            # Read the tool's output (either from file or stdout)
-            if os.path.exists(output_path):
-                with open(output_path, 'r') as f:
-                    fasta_content = f.read()
-            else:
-                fasta_content = subprocess.run(command, stdout=subprocess.PIPE, text=True).stdout
+        if not fasta_content.strip():
+            print(f"[WARN] Empty output from {tool_name} for the file {file_name}. Skipping.")
+            continue
+      
+        # Parse FASTA content to get aligned sequences
+        aligned_seqs = parse_fasta_to_sequences(fasta_content)
 
-            if not fasta_content.strip():
-              print(f"[WARN] Empty output from {tool_name} for the file {file_name}.")
-              continue
-          
-            # Parse FASTA content to get aligned sequences
-            aligned_seqs = parse_fasta_to_sequences(fasta_content)
+        if not aligned_seqs:
+            print(f"[WARN] No sequences found by parse_fasta_to_sequences for {file_name} (tool={tool_name}). Check output format.")
+            continue
+            
+        # Compute alignment metrics
+        env = Environment(aligned_seqs, convert_data=False)
+        Environment.set_alignment(env, aligned_seqs)
+        metrics = calculate_metrics(env)
+        metrics['File Name'] = file_name # Add file name to the metrics
+        
+        results.append(metrics)
 
-            if not aligned_seqs:
-              print(f"[WARN] parse_fasta_to_sequences could not find any sequence for {file_name} "
-                    f"(tool={tool_name}). Check output format.")
-              continue
+        # Clean up temporary files
+        if tool_name == 'ClustalW':
+            dnd_files = glob.glob(os.path.join(os.path.dirname(file_path), '*.dnd'))
+            for dnd_file in dnd_files:
+                os.remove(dnd_file)
                 
-            # Compute alignment metrics using Environment
-            env = Environment(aligned_seqs, convert_data=False)
-            Environment.set_alignment(env, aligned_seqs)
-
-            metrics = calculate_metrics(env)
-
-            # Write metrics to report
-            report.write(f"File: {file_name}\n")
-            report.write(f"Number of Sequences (QTY): {metrics['QTY']}\n")
-            report.write(f"Alignment Length (AL): {metrics['AL']}\n")
-            report.write(f"Sum of Pairs (SP): {metrics['SP']}\n")
-            report.write(f"Exact Matches (EM): {metrics['EM']}\n")
-            report.write(f"Column Score (CS): {metrics['CS']:.3f}\n")
-            report.write(f"Alignment:\n{env.get_alignment()}\n\n")
-
-            # Store results for CSV export
-            csv_results.append([
-                file_name, metrics['QTY'], metrics['AL'],
-                metrics['SP'], metrics['EM'], metrics['CS']
-            ])
-
-            # Remove ClustalW .dnd files (temporary files used during alignment)
-            if tool_name == 'ClustalW':
-                dnd_files = glob.glob(os.path.join(os.path.dirname(file_path), '*.dnd'))
-                for dnd_file in dnd_files:
-                    os.remove(dnd_file)
-
-    return csv_results
+    return results
 
 
-def save_inference_csv(csv_data, tool_name, dataset_name):
-    """
-    Save inference results to a CSV file for later analysis.
 
-    This function stores benchmarking results, ensuring that alignment evaluation
-    metrics are saved for different MSA tools.
-
-    Parameters:
-    -----------
-    - csv_data (list of lists or str): If a list, it contains the alignment evaluation
-                                       metrics. If a string, it represents the path
-                                       to an existing CSV file.
-    - tool_name (str): The name of the MSA tool (used to organize results).
-    - dataset_name (str): The dataset name (used for naming the output file).
-
-    Returns:
-    --------
-    - str: The file path of the saved CSV file.
-
-    Example:
-    --------
-    >>> csv_data = [
-    ...     ["dataset1.fasta", 150, 5, 120, 50, 0.65],
-    ...     ["dataset2.fasta", 140, 4, 110, 45, 0.60]
-    ... ]
-    >>> save_inference_csv(csv_data, "ClustalW", "Dataset1")
-    'path/to/csv/ClustalW/Dataset1_ClustalW_results.csv'
-    """
-    # Directory where the CSV will be stored
-    tool_csv_dir = os.path.join(config.CSV_PATH, tool_name)
-    os.makedirs(tool_csv_dir, exist_ok=True)
-
-    # Define CSV file name
-    csv_file_path = os.path.join(tool_csv_dir, f"{dataset_name}_{tool_name}_results.csv")
-
-    # Convert input data to DataFrame if necessary
-    if isinstance(csv_data, list):
-        columns = ["File Name", "Alignment Length (AL)",
-                   "Number of Sequences (QTY)", "Sum of Pairs (SP)",
-                   "Exact Matches (EM)", "Column Score (CS)"]
-        df = pd.DataFrame(csv_data, columns=columns)
-    else:
-        # If csv_data is a CSV file path, load it as a DataFrame
-        df = pd.read_csv(csv_data)
-
-    # Save DataFrame to CSV
-    df.to_csv(csv_file_path, index=False)
-
-    return csv_file_path  # Return the file path for tracking
 
 from dataset_module import FastaDataset
 
 def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
     """
-    Run inference using GA-DPAMSA and return the results CSV file path.
+    Run inference using GA-DPAMSA and return the results.
 
     This function executes GA-DPAMSA (Genetic Algorithm-enhanced DPAMSA) on a given
     dataset using a specified trained model, then returns the path to the CSV file
@@ -778,21 +721,17 @@ def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
 
     Returns:
     --------
-    - str: Path to the CSV file where inference results are saved.
+    - list: a list of dictionary with the results.
     """
     from mainGA import inference as ga_inference
 
     # Run GA-DPAMSA inference
-    ga_inference(mode=mode, dataset=dataset, model_path=model_path)
-
-    # Construct and return the CSV results file path
-    mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
-    return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
+    return ga_inference(mode=mode, dataset=dataset, model_path=model_path)
 
 
 def run_dpamsa_inference(dataset: FastaDataset, model_path):
     """
-    Run inference using DPAMSA and return the results CSV file path.
+    Run inference using DPAMSA and return the results.
 
     This function executes DPAMSA (Deep reinforcement learning-based MSA) on a given
     dataset using a specified trained model, then returns the path to the CSV file
@@ -801,20 +740,16 @@ def run_dpamsa_inference(dataset: FastaDataset, model_path):
     Parameters:
     -----------
     - dataset (module): The dataset module containing sequences to be aligned.
-    - dataset_name (str): The name of the dataset (used for naming output files).
     - model_path (str): Path to the trained DPAMSA model.
 
     Returns:
     --------
-    - str: Path to the CSV file where inference results are saved.
+    - list: a list of dictionary with the results.
     """
     from DPAMSA.main import inference as dpamsa_inference
 
     # Run DPAMSA inference
-    dpamsa_inference(dataset=dataset, model_path=model_path, truncate_file=True)
-
-    # Construct and return the CSV results file path
-    return os.path.join(config.DPAMSA_INF_CSV_PATH, f"{dataset.name}_DPAMSA_results.csv")
+    return dpamsa_inference(dataset=dataset, model_path=model_path)
 
 
 # ===========================
@@ -848,6 +783,9 @@ def plot_metrics(tool_csv_paths, dataset_name):
 
     # Process CSV files and extract metrics
     for tool, csv_path in tool_csv_paths.items():
+        if csv_path is None:
+            print(f"Warning: CSV path for tool {tool} is None. Skipping.")
+            continue
         df = pd.read_csv(csv_path)
 
         # Assign colors to tools
@@ -855,12 +793,12 @@ def plot_metrics(tool_csv_paths, dataset_name):
         color_map[tool] = color
 
         # Store box plot data
-        sum_of_pairs_data.append((tool, df['Sum of Pairs (SP)']))
-        column_score_data.append((tool, df['Column Score (CS)']))
+        sum_of_pairs_data.append((tool, df['SP']))
+        column_score_data.append((tool, df['CS']))
 
         # Compute mean values for bar plots
-        mean_sp[tool] = df['Sum of Pairs (SP)'].mean()
-        mean_cs[tool] = df['Column Score (CS)'].mean()
+        mean_sp[tool] = df['SP'].mean()
+        mean_cs[tool] = df['CS'].mean()
 
     tools = list(tool_csv_paths.keys())
 
@@ -983,3 +921,25 @@ def plot_metrics(tool_csv_paths, dataset_name):
     plt.tight_layout()
     plt.savefig(os.path.join(dataset_charts_dir, f'mean_column_score.png'), dpi=300)
     plt.close()
+
+def save_to_disk(results: list, output_path: str, csv_path: str):
+    with open(output_path, 'w') as f:
+        for res in results:
+            f.write(f"File: {res.get('name', res.get('File Name', 'N/A'))}\n")
+            f.write(f"Number of Sequences (QTY): {res['QTY']}\n")
+            f.write(f"Alignment Length (AL): {res['AL']}\n")
+            f.write(f"Sum of Pairs (SP): {res['SP']}\n")
+            f.write(f"Exact Matches (EM): {res['EM']}\n")
+            f.write(f"Column Score (CS): {res['CS']:.3f}\n")
+            if 'aligned' in res:
+                f.write("Alignment:\n")
+                for s in res['aligned']:
+                    f.write(f"{s}\n")
+            f.write(f"\n")
+
+    with open(csv_path, 'w') as csv_file:
+        import csv
+        writer = csv.writer(csv_file)
+        writer.writerow(["File Name", "QTY", "AL", "SP", "EM", "CS"])
+        for res in results:
+            writer.writerow([res.get('name', res.get('File Name', 'N/A')), res['QTY'], res['AL'], res['SP'], res['EM'], res['CS']])

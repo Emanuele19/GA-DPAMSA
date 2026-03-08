@@ -69,10 +69,8 @@ from dataset_module import FastaDataset, FastaContent
 def inference(
         mode, 
         dataset:FastaDataset=DATASET, 
-        start=0, end=-1, 
         model_path='new_model_3x30', 
-        debug=False, 
-        truncate_file=True):
+        debug=False):
     """
         Run the genetic algorithm with a specific inference mode.
 
@@ -83,11 +81,8 @@ def inference(
             * 'cs'  -> Column Score mode
             * 'mo'  -> Multi-Objective mode
         - dataset: The dataset containing sequences.
-        - start (int): Starting index of datasets to process.
-        - end (int): Ending index of datasets to process (default: -1 for all).
         - model_path (str): Path to the model used for mutation.
         - debug (bool): Whether to run GA in debug mode (Detailed Real-Time vision of the algorithm operating) or not.
-        - truncate_file (bool): Whether to overwrite report and CSV files.
 
         Raises:
         -------
@@ -98,25 +93,13 @@ def inference(
     if mode not in valid_modes:
         raise ValueError(f"Invalid mode '{mode}'. Choose one of {valid_modes}.")
 
-    # Paths definition
-    mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
-    report_file_name = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{dataset.name}_{mode_tag}.txt")
-    csv_file_name = os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
-
-    # Create or truncate results files
-    if truncate_file:
-        with open(report_file_name, 'w'):
-            pass
-        with open(csv_file_name, 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
-                             "Exact Matches (EM)", "Column Score (CS)"])
-
     # Show DPAMSA and GA configs
     output_parameters()
 
+    results = []
+
     # Inference loop
-    for index, fasta_content in enumerate(tqdm(dataset, desc="Processing Datasets"), start):
+    for fasta_content in tqdm(dataset, desc="Processing Datasets"):
         # Extract sequences
         seqs = fasta_content.tensor
 
@@ -132,29 +115,11 @@ def inference(
 
         # Compute metrics
         metrics = utils.calculate_metrics(env)
+        metrics['name'] = fasta_content.name
+        metrics['aligned'] = env.get_alignment()
+        results.append(metrics)
 
-        # Create report
-        report = (
-            f"File: {fasta_content.name}\n"
-            f"Number of Sequences (QTY): {metrics['QTY']}\n"
-            f"Alignment Length (AL): {metrics['AL']}\n"
-            f"Sum of Pairs (SP): {metrics['SP']}\n"
-            f"Exact Matches (EM): {metrics['EM']}\n"
-            f"Column Score (CS): {metrics['CS']:.3f}\n"
-            f"Alignment:\n{env.get_alignment()}\n\n"
-        )
-
-        # Save results to files
-        with open(report_file_name, 'a') as report_file:
-            report_file.write(report)
-
-        with open(csv_file_name, 'a', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow([fasta_content.name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
-
-    print(f"\nInference completed successfully.")
-    print(f"Report saved at: {report_file_name}")
-    print(f"CSV saved at: {csv_file_name}\n\n")
+    return results
 
 
 if __name__ == "__main__":
@@ -165,4 +130,14 @@ if __name__ == "__main__":
        - 'mo'  -> Multi-Objective mode
     """
     default_dataset = FastaDataset(DATASET)
-    inference(mode=GA_MODE, dataset=default_dataset, model_path=INFERENCE_MODEL, debug=DEBUG_MODE)
+    results = inference(mode=GA_MODE, dataset=default_dataset, model_path=INFERENCE_MODEL, debug=DEBUG_MODE)
+    
+    mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[GA_MODE]
+    report_file_name = os.path.join(config.GA_DPAMSA_REPORTS_PATH, f"{default_dataset.name}_{mode_tag}.txt")
+    csv_file_name = os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{default_dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
+    
+    utils.save_to_disk(results, report_file_name, csv_file_name)
+    
+    print(f"\nInference completed successfully.")
+    print(f"Report saved at: {report_file_name}")
+    print(f"CSV saved at: {csv_file_name}\n\n")

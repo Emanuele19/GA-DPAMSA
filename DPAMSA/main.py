@@ -256,33 +256,18 @@ def train(dataset:MSADataset=TRAINING_DATASET, start=0, end=-1, model_path='new_
 
 
 
-def inference(dataset: FastaDataset, start=0, end=-1, model_path=INFERENCE_MODEL, truncate_file=True):
+def inference(dataset: FastaDataset, model_path=INFERENCE_MODEL):
     """
     Run inference using a pre-trained model on a given dataset.
 
     Parameters:
     - dataset (module): The dataset module containing sequences.
-    - start (int): Index to start processing datasets.
-    - end (int): Index to stop processing datasets (-1 for all).
     - model_path (str): Path to the pre-trained model.
-    - truncate_file (bool): Whether to overwrite report files.
     """
     output_parameters()
 
-    tag = dataset.name
-    report_file_name = os.path.join(config.DPAMSA_REPORTS_PATH, f"{tag}.txt")
-    csv_file_name = os.path.join(config.DPAMSA_INF_CSV_PATH, f"{tag}_DPAMSA_results.csv")
-
-    # Create or truncate results files
-    if truncate_file:
-        with open(report_file_name, 'w'):
-            pass
-        with open(csv_file_name, 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(["File Name", "Number of Sequences (QTY)", "Alignment Length (AL)", "Sum of Pairs (SP)",
-                             "Exact Matches (EM)", "Column Score (CS)"])
-
-    for index, fasta_content in enumerate(tqdm(dataset, desc="Processing Datasets"), start):
+    results = []
+    for fasta_content in tqdm(dataset, desc="Processing Datasets"):
         seqs = fasta_content.tensor
 
         env = Environment(seqs)
@@ -301,29 +286,11 @@ def inference(dataset: FastaDataset, start=0, end=-1, model_path=INFERENCE_MODEL
 
         # Compute metrics
         metrics = utils.calculate_metrics(env)
+        metrics["name"] = fasta_content.name
+        metrics["aligned"] = env.get_alignment()
+        results.append(metrics)
 
-        # Create report
-        report = (
-            f"File: {fasta_content.name}\n"
-            f"Number of Sequences (QTY): {metrics['QTY']}\n"
-            f"Alignment Length (AL): {metrics['AL']}\n"
-            f"Sum of Pairs (SP): {metrics['SP']}\n"
-            f"Exact Matches (EM): {metrics['EM']}\n"
-            f"Column Score (CS): {metrics['CS']:.3f}\n"
-            f"Alignment:\n{env.get_alignment()}\n\n"
-        )
-
-        # Save results to files
-        with open(report_file_name, 'a') as report_file:
-            report_file.write(report)
-
-        with open(csv_file_name, 'a', newline='') as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow([fasta_content.name, metrics['QTY'], metrics['AL'], metrics['SP'], metrics['EM'], metrics['CS']])
-
-    print(f"\nInference completed successfully.")
-    print(f"Report saved at: {report_file_name}")
-    print(f"CSV saved at: {csv_file_name}\n\n")
+    return results
 
 
 def menu():
@@ -351,7 +318,16 @@ def menu():
             confirm = input("Do you want to proceed with inference? (yes/no): ").strip().lower()
             if confirm == "yes":
                 print("\nStarting inference...")
-                inference(dataset=INFERENCE_DATASET, model_path=INFERENCE_MODEL)
+                results = inference(dataset=INFERENCE_DATASET, model_path=INFERENCE_MODEL)
+                
+                report_file_name = os.path.join(config.DPAMSA_REPORTS_PATH, f"{INFERENCE_DATASET.name}.txt")
+                csv_file_name = os.path.join(config.DPAMSA_INF_CSV_PATH, f"{INFERENCE_DATASET.name}_DPAMSA_results.csv")
+
+                utils.save_to_disk(results, report_file_name, csv_file_name)
+                
+                print(f"\nInference completed successfully.")
+                print(f"Report saved at: {report_file_name}")
+                print(f"CSV saved at: {csv_file_name}\n\n")
             else:
                 print("\nInference canceled.")
 
