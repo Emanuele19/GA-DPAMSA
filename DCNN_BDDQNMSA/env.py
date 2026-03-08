@@ -27,6 +27,7 @@ class Environment:
         # Va fratto al reward nella funzione di calcolo dei reward
         self.num_pairs = self.N * (self.N - 1) // 2
         self.reward_scaling_factor = 1.0 / (self.num_pairs * config.MATCH_REWARD)
+        self.gap_column_action_penalty = -1.0 * config.MATCH_REWARD * self.num_pairs * config.PENALTY_MULTIPLIER
         
         # Padding iniziale se necessario
         if self.L < self.fixed_size:
@@ -74,7 +75,10 @@ class Environment:
         self.current_state = next_state
 
         is_stalling_action = all(c == 1 for c in action)
-        reward = self.calc_reward(aligned_column)
+        if is_stalling_action:
+            reward = self.gap_column_action_penalty * self.reward_scaling_factor
+        else:
+            reward = self.calc_reward(aligned_column)
         
         if torch.all(self.current_state == self.pad_idx):
             self.done = True
@@ -123,8 +127,8 @@ class Environment:
         # Poi viene aggiunta una penalità di gap per ogni gap aggiunto
         score = 0.0
         gap_count = column.count(self.gap_idx)
-        if gap_count == self.N: # -1.5x the best reward the agent could get
-            return -1.0 * config.MATCH_REWARD * self.num_pairs * config.PENALTY_MULTIPLIER
+        # if gap_count == self.N: # -1.5x the best reward the agent could get
+        #     return -1.0 * config.MATCH_REWARD * self.num_pairs * config.PENALTY_MULTIPLIER
         
         score += gap_count * config.GAP_PENALTY
         for i in range(self.N):
