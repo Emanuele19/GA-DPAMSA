@@ -26,8 +26,8 @@ Output:
 
 # ================= CONFIGURATION ================= #
 # User-configurable parameters
-num_sequences = 6            # Number of DNA sequences per dataset
-sequence_length = 60         # Length of each sequence
+num_sequences = 3            # Number of DNA sequences per dataset
+sequence_length = 30         # Length of each sequence
 mutation_rate = 0.10         # Mutation probability (10%)
 gap_rate = 0.05              # Gap insertion probability (5%)
 number_of_datasets = 50      # Total number of datasets to generate
