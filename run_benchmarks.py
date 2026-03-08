@@ -45,6 +45,12 @@ def _run_external_tool(tool_name, file_paths, dataset_name):
     csv_path = utils.save_inference_csv(tool_results, tool_name, dataset_name)
     return tool_name, csv_path
 
+def _run_nsga_worker(dataset_path, model_name):
+    print("Running NSGA-II...")
+    dataset = FastaDataset(dataset_path)
+    csv_path = utils.run_nsga_inference(dataset, model_name)
+    print("NSGA-II finished. CSV:", csv_path)
+    return "NSGA-II", csv_path
 
 def _run_ga_dpamsa_worker(dataset_path, model_name):
     """
@@ -93,6 +99,11 @@ def main():
         jobs.append(
             executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)
         )
+
+        # new GA NSGA
+        jobs.append(
+            executor.submit(_run_nsga_worker, dataset_path, GA_DPAMSA_MODEL)
+            )
 
         # DPAMSA if choice is 1 or 3
         if choice == 1 or choice == 3:

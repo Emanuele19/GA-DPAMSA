@@ -9,7 +9,7 @@ from tqdm import tqdm
 from pathlib import Path
 import config
 from DPAMSA.env import Environment
-
+from NSGA_II.nsga2 import NSGA2_GA
 """
 DPAMSA Utility Functions
 
@@ -791,6 +791,38 @@ def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
     mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
     return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
 
+# new GA NSGA-II
+def run_nsga_inference(dataset: FastaDataset, model_name):
+
+    results = []
+
+    for fasta in dataset:
+
+        sequences = fasta.sequences
+        file_name = fasta.name
+
+        ga = NSGA2_GA(sequences, mode='mo')
+
+        alignment = ga.run(model_name)
+
+        # calcolo metriche come per gli altri tool
+        env = Environment(alignment, convert_data=False)
+        Environment.set_alignment(env, alignment)
+
+        metrics = calculate_metrics(env)
+
+        results.append([
+            file_name,
+            metrics["QTY"],
+            metrics["AL"],
+            metrics["SP"],
+            metrics["EM"],
+            metrics["CS"]
+        ])
+
+    csv_path = save_inference_csv(results, "NSGA-II", dataset.name)
+
+    return csv_path
 
 def run_dpamsa_inference(dataset: FastaDataset, model_path):
     """

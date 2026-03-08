@@ -84,6 +84,7 @@ BASE_RESULTS_PATH = os.path.join(PROJECT_ROOT, "results")
 REPORTS_PATH = os.path.join(BASE_RESULTS_PATH, "reports")
 DPAMSA_REPORTS_PATH = os.path.join(REPORTS_PATH, "DPAMSA")
 GA_DPAMSA_REPORTS_PATH = os.path.join(REPORTS_PATH, "GA-DPAMSA")
+NSGA_REPORTS_PATH = os.path.join(REPORTS_PATH, "NSGA-II")
 DATASETS_REPORTS_PATH = os.path.join(REPORTS_PATH, "datasets")
 BENCHMARKS_PATH = os.path.join(BASE_RESULTS_PATH, "benchmarks")
 TOOLS_OUTPUT_PATH = os.path.join(BASE_RESULTS_PATH, "tools_output")
@@ -92,6 +93,7 @@ DATASETS_CSV_PATH = os.path.join(CSV_PATH, "datasets")
 INFERENCE_CSV_PATH = os.path.join(CSV_PATH, "inference")
 DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "DPAMSA")
 GA_DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "GA-DPAMSA")
+NSGA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "NSGA-II")
 CHARTS_PATH = os.path.join(BENCHMARKS_PATH, "charts")
 
 # Ensure directories exist, creating them if they don't
@@ -109,6 +111,8 @@ REQUIRED_DIRECTORIES = [
     INFERENCE_CSV_PATH,
     DPAMSA_INF_CSV_PATH,
     GA_DPAMSA_INF_CSV_PATH,
+    NSGA_INF_CSV_PATH,
+    NSGA_REPORTS_PATH,
     CHARTS_PATH
 ]
 for path in REQUIRED_DIRECTORIES:

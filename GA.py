@@ -305,33 +305,38 @@ class GA:
         self.calculate_fitness_score()
 
     def mutation(self, model_path):
-        """
-        Applies mutation to selected candidate alignments by modifying their worst-performing sub-region.
 
-        Process:
-            1. Calculate the number of individuals to mutate based on MUTATION_RATE.
-            2. Select the best candidates for mutation (using fitness scores).
-            3. For each selected candidate, identify the worst-performing sub-board.
-            4. Use a Deep Q-Network (DQN) agent (loaded from model_path) to iteratively mutate the sub-board.
-            5. Replace the original sub-board with the mutated version in the candidate alignment.
+        # Numero reale individui da mutare
+        num_individuals_to_mutate = max(
+            1,
+            round(len(self.population) * config.MUTATION_RATE)
+        )
 
-        Parameters:
-        -----------
-            model_path (str): File path to the trained RL model used for mutation.
+        # Ordiniamo per fitness (decrescente)
+        if self.mode in {'sp', 'cs'}:
+            sorted_population = sorted(
+                enumerate(self.population_score),
+                key=lambda x: x[1][1],  # fitness score
+                reverse=True
+            )
+        else:  # modalità multi-objective
+            sorted_population = sorted(
+                enumerate(self.population_score),
+                key=lambda x: (x[1][1], x[1][2]),  # (SP, CS)
+                reverse=True
+            )
 
-        Returns:
-        --------
-            None
-        """
-        # Determine how many individuals to mutate.
-        num_individuals_to_mutate = round(
-            config.POPULATION_SIZE * config.MUTATION_RATE)
+        # PRENDIAMO LE POSIZIONI REALI NELLA LISTA
+        positions_to_mutate = [
+            pos for pos, _ in sorted_population[:num_individuals_to_mutate]
+        ]
 
-        # Select the best individuals (indices) for mutation.
-        best_fitted_individuals = utils.get_index_of_the_best_fitted_individuals(self.population_score,
-                                                                                 num_individuals_to_mutate)
+        # Mutiamo usando POSIZIONI REALI nella popolazione
+        for index in positions_to_mutate:
 
-        for index in best_fitted_individuals:
+            if index >= len(self.population):
+                continue
+
             individual_to_mutate = self.population[index]
 
             # Identify the worst-performing sub-board (region) for mutation.

@@ -6,6 +6,7 @@ import config
 from DPAMSA.env import Environment
 from GA import GA
 import utils
+from NSGA_II.nsga2 import NSGA2_GA
 
 """
 GA-DPAMSA Inference Script
@@ -40,10 +41,10 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 #                   matched columns.
 #         • 'mo'  → Multi-Objective mode, combining SP and CS metrics for a balanced evaluation.
 #       Choose based on the alignment criteria you want to optimize.
-GA_MODE = 'sp'
+GA_MODE = 'mo'
 
 # Dataset module containing the sequences to be aligned.
-DATASET = os.path.join(config.FASTA_FILES_PATH, 'dataset1_3x30bp')
+DATASET = os.path.join(config.FASTA_FILES_PATH, 'random_dataset')  # Path to the dataset directory containing FASTA files.
 
 # Identifier or path to the trained RL model used for mutation.
 INFERENCE_MODEL = 'new_model_3x30'
@@ -125,7 +126,7 @@ def inference(
         env = Environment(seqs, convert_data=False)
 
         # Initialize and run GA
-        ga = GA(seqs, mode)
+        ga = NSGA2_GA(seqs, mode)
         best_alignment = ga.run(model_path, debug)
 
         # Set alignment to use env utilities
