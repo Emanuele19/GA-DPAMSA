@@ -31,9 +31,9 @@ NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_
 # ===========================
 # DPAMSA Hyperparameters
 # ===========================
-GAP_PENALTY = -6  # Penalty for inserting a gap
-MISMATCH_PENALTY = -2  # Penalty for a mismatch
-MATCH_REWARD = 5  # Reward for a correct match
+GAP_PENALTY = -2  # Penalty for inserting a gap
+MISMATCH_PENALTY = -3  # Penalty for a mismatch
+MATCH_REWARD = 6  # Reward for a correct match
 TIME_PENALTY = -0.2 # Penalty for time passing. To avoid stalls.
 MICROTIME_PENALTY = TIME_PENALTY / 10 # Changes the Q values by a small amount to avoid persistent actions
 PENALTY_MULTIPLIER = 1.5 # For VERY bad actions

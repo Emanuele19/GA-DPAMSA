@@ -45,7 +45,7 @@ class Environment:
         self.history = [] # Reset della memoria ad ogni nuovo episodio
         return self.current_state
 
-    def step(self, action: int, is_inference=False) -> Tuple[torch.Tensor, float, bool]:
+    def step(self, action: int) -> Tuple[torch.Tensor, float, bool]:
         if self.done:
             return self.current_state, 0.0, True, False
 
@@ -74,14 +74,7 @@ class Environment:
         self.current_state = next_state
 
         is_stalling_action = all(c == 1 for c in action)
-        if is_stalling_action:
-            worst_sp = config.GAP_PENALTY * self.num_pairs
-            reward = worst_sp * config.PENALTY_MULTIPLIER + config.TIME_PENALTY
-        else:
-            reward = self._calc_sp_reward(aligned_column)
-            reward += config.MICROTIME_PENALTY
-
-        reward *= self.reward_scaling_factor
+        reward = self.calc_reward(aligned_column)
         
         if torch.all(self.current_state == self.pad_idx):
             self.done = True
@@ -124,6 +117,26 @@ class Environment:
                 else:
                     score += config.MISMATCH_PENALTY
         return score
+    
+    def calc_reward(self, column: list) -> float:
+        # Simile ad SP ma fatto solo sui nucleotidi
+        # Poi viene aggiunta una penalità di gap per ogni gap aggiunto
+        score = 0.0
+        gap_count = column.count(self.gap_idx)
+        if gap_count == self.N: # -1.5x the best reward the agent could get
+            return -1.0 * config.MATCH_REWARD * self.num_pairs * config.PENALTY_MULTIPLIER
+        
+        score += gap_count * config.GAP_PENALTY
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                c1, c2 = column[i], column[j]
+                if c1 == self.pad_idx or c2 == self.pad_idx: continue
+                if c1 == self.gap_idx or c2 == self.gap_idx: continue
+                elif c1 == c2:
+                    score += config.MATCH_REWARD
+                else:
+                    score += config.MISMATCH_PENALTY
+        return score * self.reward_scaling_factor
     
     def calculate_total_cs(self) -> float:
         """
