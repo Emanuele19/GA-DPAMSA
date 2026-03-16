@@ -7,11 +7,25 @@ class MSABranchingNet(nn.Module):
         super(MSABranchingNet, self).__init__()
         self.n_sequences = n_sequences
         
-        # 1. Shared Encoder
+        # hared Encoder
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.conv1 = nn.Conv2d(embedding_dim, 32, kernel_size=(n_sequences, 3), dilation=(1, 1), padding=(1, 1))
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(n_sequences, 3), dilation=(1, 2), padding=(1, 2))
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=(n_sequences, 3), dilation=(1, 4), padding=(1, 4))
+
+        # Kernel height and width
+        kh = n_sequences if n_sequences % 2 != 0 else n_sequences + 1
+        kw = 3
+        
+        # Fixed vertical padding
+        pad_h = (kh - 1) // 2
+        
+        # Dilations
+        d1, d2, d3 = 1, 2, 4
+
+        self.conv1 = nn.Conv2d(embedding_dim, 32, 
+                               kernel_size=(kh, kw), dilation=(1, d1), padding=(pad_h, d1))
+        self.conv2 = nn.Conv2d(32, 64, 
+                               kernel_size=(kh, kw), dilation=(1, d2), padding=(pad_h, d2))
+        self.conv3 = nn.Conv2d(64, 128, 
+                               kernel_size=(kh, kw), dilation=(1, d3), padding=(pad_h, d3))
         
         # Post flattening dimension
         self.feature_dim = 128 * n_sequences

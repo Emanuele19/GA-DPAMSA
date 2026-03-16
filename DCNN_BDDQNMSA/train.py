@@ -12,6 +12,8 @@ logger = setup_logger()
 gap_idx = config.NUCLEOTIDE_ENCODING['-']
 pad_idx = config.NUCLEOTIDE_ENCODING['P']
 
+TRAINING_DS = os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_10x100_train.h5')
+
 def open_tensorboard(log_dir):
     import subprocess, time, webbrowser
     """
@@ -44,7 +46,7 @@ def train():
     TENSORBOARD_PATH = "runs/bdqn_msa"
     
     # Inizializzazione Dataset
-    dataset = MSADataset(os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30_train.h5'))
+    dataset = MSADataset(TRAINING_DS)
     
     # --- CHECK DIMENSIONE DATASET ---
     # Calcoliamo quanti file abbiamo effettivamente a disposizione

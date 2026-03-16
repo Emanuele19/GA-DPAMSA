@@ -70,8 +70,8 @@ def main():
     
     MAX_BOARDS = 20000
 
-    N = 3   # Number of sequences to align
-    W = 30  # Length of each sequence
+    N = 10   # Number of sequences to align
+    W = 100  # Length of each sequence
 
     HDF5_DIR = DATASET_ROOT / "orthodb_v12" / f"hdf5_{N}x{W}.h5"
 
@@ -92,7 +92,7 @@ def main():
     # 2. Instantiate Dataset
     dataset = FastaWindowDataset(
         input_dir=PREPARED_DIR,
-        transform=augmentation,
+        transform=None,
         max_seqs_per_block=N,
         window_len=W,
         keep_incomplete_windows=False,
