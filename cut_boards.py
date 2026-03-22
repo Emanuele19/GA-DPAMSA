@@ -59,21 +59,24 @@ def fasta_to_hdf5(input_folder, output_file, N, W):
             # Writing to dataset
             dset[idx, :, :] = matrix
 
+        logger.info(f"Shape produced: {dset.shape}")
+
     logger.info(f"Done. HDF5 file saved to: {output_file}")
 
 
 def main():
     DATASET_ROOT = Path("datasets/fasta_files")
     RAW_DIR = DATASET_ROOT / "orthodb_v12" / "raw"
-    PREPARED_DIR = DATASET_ROOT / "orthodb_v12" / "unique_no_ambig_imp_cut"
-    OUTPUT_DIR = DATASET_ROOT / "orthodb_v12" / "cut_boards"
     
     MAX_BOARDS = 20000
 
     N = 10   # Number of sequences to align
     W = 100  # Length of each sequence
-
+    
+    PREPARED_DIR = DATASET_ROOT / "orthodb_v12" / f"unique_no_ambig_imp_cut_{N}x{W}"
+    OUTPUT_DIR = DATASET_ROOT / "orthodb_v12" / f"cut_boards_{N}x{W}"
     HDF5_DIR = DATASET_ROOT / "orthodb_v12" / f"hdf5_{N}x{W}.h5"
+    WITH_AUGMENTATION = True
 
     basic_preparation = BasicCompose([
         ResolveAmbiguities(),
@@ -92,7 +95,7 @@ def main():
     # 2. Instantiate Dataset
     dataset = FastaWindowDataset(
         input_dir=PREPARED_DIR,
-        transform=None,
+        transform=augmentation if WITH_AUGMENTATION else None,
         max_seqs_per_block=N,
         window_len=W,
         keep_incomplete_windows=False,

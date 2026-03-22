@@ -188,7 +188,7 @@ MODELS = {
         "requires_dataset_object": True
     },
     "DCNNMSA": {
-        "model_path": os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights', 'old_model(19k).pth'),
+        "model_path": os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights', 'msa_model_ep18999.pth'),
         "report_path": os.path.join(REPORTS_PATH, 'DCNNMSA'),
         "csv_path": os.path.join(INFERENCE_CSV_PATH, 'DCNNMSA'),
         "requires_dataset_object": False

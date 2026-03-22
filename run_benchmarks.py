@@ -24,11 +24,11 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # Dataset and Model Configuration
 # ===========================
 
-BASE_DS_NAME = 'hdf5_3x30_test_50'
+BASE_DS_NAME = 'hdf5_3x30_test'
 DATASET_NAME = f'orthodb_v12/{BASE_DS_NAME}'
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
-DCNNMSA_MODEL = 'new_model(18k).pth'
+DCNNMSA_MODEL = 'msa_model_ep18999.pth'
 DCNN_BDDQNMSA_MODEL = 'msa_model_ep18999.pth'
 
 

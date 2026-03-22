@@ -57,7 +57,7 @@ if __name__ == "__main__":
     csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
     out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
     results = run_inference(
-        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, 'msa_model_ep19000.pth'),
-        data_folder = os.path.join(config.FASTA_FILES_PATH, 'synthetic_dataset_3x30bp')
+        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, 'msa_model_ep18999.pth'),
+        data_folder = os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30_test_10')
     )
     save_to_disk(results, out_path, csv_path)
