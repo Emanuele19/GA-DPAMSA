@@ -137,7 +137,7 @@ def train():
 
         p_bar.update(1)
 
-    agent.save(f"msa_model_ep{episode}.pth")
+    agent.save(f"msa_model_ep{episode}.pth", path=os.path.join(config.PROJECT_ROOT, 'DCNNMSA_BDDQNMSA', 'weights'))
     writer.close()
     logger.info(f"\nTraining completato. Eseguiti {episode} episodi.")
 
