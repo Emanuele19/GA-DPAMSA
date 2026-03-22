@@ -6,7 +6,7 @@ import os
 from typing import Optional
 from DCNNMSA.base_net import MSANet
 import config
-from model_utils import ReplayBuffer
+from model_utils import SingleHeadReplayBuffer
 
 
 class DQNAgent:
@@ -27,7 +27,7 @@ class DQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
         self.optimizer: optim.Adam = optim.Adam(self.policy_net.parameters(), lr=lr)
-        self.memory: ReplayBuffer = ReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
+        self.memory: SingleHeadReplayBuffer = SingleHeadReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
 
     def select_action(self, state: torch.Tensor) -> int:
         """Epsilon-greedy per bilanciare esplorazione e sfruttamento."""

@@ -6,7 +6,7 @@ import os
 from typing import Optional
 from DCNN_BDDQNMSA.base_net import MSABranchingNet
 import config
-from model_utils import ReplayBuffer
+from model_utils import MultiHeadReplayBuffer
 
 
 class DQNAgent:
@@ -27,7 +27,7 @@ class DQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
         self.optimizer: optim.Adam = optim.Adam(self.policy_net.parameters(), lr=lr)
-        self.memory: ReplayBuffer = ReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
+        self.memory: MultiHeadReplayBuffer = MultiHeadReplayBuffer(capacity=config.REPLAY_MEMORY_SIZE)
 
         # Pre-allocated for performances
         self.all_gaps_tensor = torch.ones(self.n_sequences, device=self.device, dtype=torch.long)
