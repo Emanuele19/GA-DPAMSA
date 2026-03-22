@@ -81,8 +81,7 @@ def train():
             agent.save(f"msa_model_ep{episode}.pth")
             break
             
-        env = Environment(alignment.sequences, fixed_size=W, 
-                          gap_idx=gap_idx, pad_idx=pad_idx)
+        env = Environment(alignment.sequences, fixed_size=W)
         state = env.reset()
         episode_reward = 0
         episode_loss = []
