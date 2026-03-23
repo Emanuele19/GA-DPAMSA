@@ -11,10 +11,14 @@ class BaseMSAAgent(ABC):
     """
     optimizer: torch.optim.Optimizer
 
-    def __init__(self, actor: IMSAActor, device: str = 'cpu'):
+    def __init__(self, actor: IMSAActor, device: str = 'cpu', padding_idx: int = 5):
         self.actor = actor
         self.device = device
         self.actor.to(device)
+        self.padding_idx = padding_idx
+
+    def build_mask(self, state: torch.Tensor) -> torch.Tensor:
+        return state != self.padding_idx
 
     def get_action(self, state: np.ndarray, deterministic: bool = False):
         """
@@ -25,8 +29,7 @@ class BaseMSAAgent(ABC):
         self.actor.eval()
         with torch.no_grad():
             state_t = torch.tensor(state, dtype=torch.long, device=self.device)
-            # Create a simple mask: 1 where data > 0, 0 where padding (0)
-            mask = (state_t != 0)
+            mask = self.build_mask(state_t)
 
             action_t = self.actor.get_action(state_t, mask=mask, deterministic=deterministic)
             return action_t.cpu().numpy()

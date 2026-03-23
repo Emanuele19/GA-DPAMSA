@@ -85,7 +85,7 @@ class PPOTrainer(BaseTrainer[PPO_Agent]):
         state = self._prepare_batch(batch_data)
 
         # Create mask for valid positions (1.0 for DNA, 0.0 for Padding)
-        mask = (state != self.padding_idx).float()
+        mask = self.agent.build_mask(state).float()
 
         # 2. Rollout (No Gradients)
         # We collect the trajectory defined by the "Old" policy.

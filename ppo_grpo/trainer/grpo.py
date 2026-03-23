@@ -90,7 +90,7 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             # C. Compute Old Log Probabilities
             # These are the probabilities of the actions *at the time of sampling*.
             # They serve as the denominator in the PPO Ratio (New/Old).
-            mask = (state_repeated != self.padding_idx).float()
+            mask = self.agent.build_mask(state_repeated).float()
 
             # Sum log_probs over dimensions (Rows, Len) to get probability per sample.
             old_log_probs_raw = old_dist.log_prob(actions_float)
