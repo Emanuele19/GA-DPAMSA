@@ -105,6 +105,9 @@ class BaseTrainer(ABC, Generic[AgentType]):
         # 1. Get raw entropy for every position (Batch, Rows, Len)
         raw_entropy = dist.entropy()
 
+        if raw_entropy.shape != mask.shape:
+            self.logger.warning(f"Entropy shape {raw_entropy.shape} != Mask shape {mask.shape}")
+
         # 2. Zero out entropy values corresponding to padding tokens.
         masked_entropy = raw_entropy * mask
 
@@ -117,51 +120,6 @@ class BaseTrainer(ABC, Generic[AgentType]):
         weighted_entropy = mean_entropy * self.entropy_coef
 
         return weighted_entropy, mean_entropy
-
-    def _get_raw_sequences(
-            self,
-            batch_data,
-            tensor_batch
-    ) -> list[list[list[int]]]:
-        """
-        Extracts clean, unpadded biological sequences from the batch.
-
-        This method bridges the gap between the 'Technical View' (Rectangular Tensors
-        required by GPUs) and the 'Biological View' (Ragged lists of integers required
-        by the Environment/Alignment logic).
-
-        Args:
-            batch_data: The raw data yielded by the DataLoader. Can be a list of
-                        objects, a list of lists, or a Tensor.
-            tensor_batch: The processed tensor (Batch, Rows, Max_Len) used in the
-                          forward pass. Used here to recover data if batch_data
-                          is not directly usable.
-
-        Returns:
-            list[list[list[int]]]: A nested list structure containing ONLY valid
-            nucleotide indices. All technical padding (self.padding_idx) is removed.
-        """
-        # If the dataloader yielded objects with a 'sequences' attribute, use that directly.
-        if isinstance(batch_data, list) and not torch.is_tensor(batch_data):
-            if hasattr(batch_data[0], 'sequences'):
-                return [x.sequences for x in batch_data]
-            if len(batch_data) > 0 and isinstance(batch_data[0], list) and isinstance(batch_data[0][0], list):
-                return batch_data
-
-        # Fallback: Convert the padded tensor back to a clean list of lists.
-        # This removes the trailing 0s (padding_idx) added by the collate_fn/preprocessor.
-        raw_seqs = []
-        cpu_batch = tensor_batch.cpu().numpy()
-
-        for i in range(len(cpu_batch)):
-            board = []
-            for r in range(len(cpu_batch[i])):
-                row_data = cpu_batch[i][r]
-                clean_row = [int(x) for x in row_data if x != self.padding_idx]
-                board.append(clean_row)
-            raw_seqs.append(board)
-
-        return raw_seqs
 
     @abstractmethod
     def train_step(self, batch) -> dict[str, float]:

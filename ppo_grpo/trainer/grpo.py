@@ -98,7 +98,7 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
 
             # D. Decode & Evaluate (GPU Environment)
             # Convert continuous actions to integers for the environment
-            actions_int = torch.round(F.relu(actions_float)).long()
+            actions_int = torch.round(F.softplus(actions_float)).long()
 
             # Run the vectorized environment (Massively Parallel)
             rewards, metrics = self.env.evaluate_batch(state_repeated, actions_int)
@@ -111,6 +111,12 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
         # Calculate Group Stats
         group_mean = rewards_grouped.mean(dim=1, keepdim=True)
         group_std = rewards_grouped.std(dim=1, keepdim=True) + 1e-8
+
+        # raw_group_std = rewards_grouped.std(dim=1, keepdim=True)
+        #
+        # # Log the average standard deviation within groups.
+        # # If this is 0, the model has collapsed (all samples are identical).
+        # debug_avg_group_std = raw_group_std.mean().item()
 
         # Advantage = Z-Score of the reward within its own group
         advantages = (rewards_grouped - group_mean) / group_std
@@ -125,6 +131,7 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
 
         total_loss = 0.0
         total_entropy = 0.0
+        #total_grad_norm = 0.0
 
         for _ in range(self.grpo_epochs):
             # A. Forward Pass (New Policy)
@@ -164,6 +171,16 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             self.agent.optimizer.zero_grad()
             loss.backward()
 
+            # # --- DEBUG: CHECK GRADIENT NORMS ---
+            # # Calculates the L2 norm of gradients to ensure the network is learning.
+            # current_norm = 0.0
+            # for p in self.agent.actor.parameters():
+            #     if p.grad is not None:
+            #         param_norm = p.grad.data.norm(2)
+            #         current_norm += param_norm.item() ** 2
+            # current_norm = current_norm ** 0.5
+            # total_grad_norm += current_norm
+
             # Gradient Clipping (Prevents exploding gradients)
             torch.nn.utils.clip_grad_norm_(self.agent.actor.parameters(), 1.0)
 
@@ -181,6 +198,10 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
         avg_loss = total_loss / self.grpo_epochs
         avg_entropy = total_entropy / self.grpo_epochs
 
+        # # Statistics about the actions (Are we predicting gaps?)
+        # avg_gaps_pred = actions_int.float().mean().item()
+        # max_gaps_pred = actions_int.max().item()
+
         return {
             'loss': avg_loss,
             'entropy': avg_entropy,
@@ -188,5 +209,16 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             'max_reward': rewards.max().item(),
             'SP_Score': metrics['SP'],  # From the last evaluation pass
             'CS_Percent': metrics['CS'],
-            'Alignment_Len': metrics['AL']
+            'Alignment_Len': metrics['AL'],
+
+            # # --- CRITICAL DEBUG METRICS ---
+            # # If Group_Std is 0 or very low (<1e-5), increase Adapter Sigma!
+            # 'Debug/Group_Std': debug_avg_group_std,
+            #
+            # # If Grad_Norm is 0, the backward pass is broken.
+            # 'Debug/Grad_Norm': total_grad_norm / self.grpo_epochs,
+            #
+            # # If Avg_Gaps is 0, the model is lazy (increase Entropy coef).
+            # 'Debug/Avg_Gaps': avg_gaps_pred,
+            # 'Debug/Max_Gaps': float(max_gaps_pred),
         }

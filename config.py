@@ -29,16 +29,16 @@ ALGO = 'GRPO'
 # Dimensions
 AGENT_WINDOW_COLUMN = 30
 AGENT_WINDOW_ROW = 3       # Number of sequences in a sub-board (block)
-BATCH_SIZE = 4             # Number of sub-boards to process at once
+BATCH_SIZE = 64             # Number of sub-boards to process at once
 MAX_GAPS_PER_POS = 5       # Maximum gaps the model can predict per position
 
 # Training Hyperparameters
 LR = 1e-4                  # Learning Rate
 MAX_EPOCH = 100            # Total training epochs
 SAVE_FREQ = 10             # Save weights every N epochs
-GRPO_GROUP_SIZE = 16       # (Only for GRPO) Number of parallel samples per input
+GRPO_GROUP_SIZE = 32       # (Only for GRPO) Number of parallel samples per input
 
-ENTROPY_COEFFICIENT = 0.01
+ENTROPY_COEFFICIENT = 0.005
 
 # Paths
 TENSORBOARD_PATH = "./runs/experiment_gen_01"
@@ -141,7 +141,7 @@ INFERENCE_DATASET_PATH = os.path.join(BASE_DATASETS_PATH, "inference_dataset")
 
 # Model Weights Path
 DPAMSA_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "weights")
-MODEL_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights') # For new models
+# MODEL_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights') # For new models
 
 # Tensorboard Training Runs Path
 RUNS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "runs")

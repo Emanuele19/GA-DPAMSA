@@ -8,9 +8,9 @@ import config
 from utils import setup_logger
 from dataset_module import MSADataset
 
-from agent.backbone.dcnn import DCNNBackbone
+from agent.backbone.new import RobustBackbone
 from agent.output_adapter.gaussian import GaussianGapAdapter
-from agent.actor.linear import MSA_Actor
+from agent.actor.mlp import MSA_Actor
 from agent.critic.linear import MSA_Critic
 from agent.ppo_agent import PPO_Agent
 from agent.grpo_agent import GRPO_Agent
@@ -90,11 +90,12 @@ def main():
 
     # A. Backbone (The 'Eye')
     # Uses Dilated CNNs to capture DNA motifs
-    backbone = DCNNBackbone(
+    backbone = RobustBackbone(
         num_rows=config.AGENT_WINDOW_ROW,  # e.g., 3 sequences per block
         vocab_size=len(config.NUCLEOTIDES_MAP) + 1,  # +1 for safe padding handling
-        embedding_dim=64,
-        hidden_dim=12
+        embedding_dim=128,
+        hidden_dim=128,
+        num_layers=3,
     )
 
     # B. Output Adapter (The 'Translator')
@@ -140,11 +141,12 @@ def main():
 
         # PPO requires a Critic (Value Function)
         # We create a separate Backbone for the Critic to ensure stability
-        critic_backbone = DCNNBackbone(
+        critic_backbone = RobustBackbone(
             num_rows=config.AGENT_WINDOW_ROW,
             vocab_size=len(config.NUCLEOTIDES_MAP) + 1,
-            embedding_dim=64,
-            hidden_dim=128
+            embedding_dim=128,
+            hidden_dim=128,
+            num_layers=4,
         )
         critic = MSA_Critic(critic_backbone)
 

@@ -69,7 +69,7 @@ class GaussianGapAdapter(IMSAOutputAdapter):
             # 2. Log_Std for padding
             # Std for padding is set an infinitesimal value
             # This avoids any useless learning made outside the mask
-            log_std = log_std * mask_float
+            log_std = log_std * mask_float + (1.0 - mask_float) * self.min_log_std
 
         # Clamping for stability (as before)
         log_std = torch.clamp(log_std, min=self.min_log_std, max=self.max_log_std)
@@ -89,6 +89,9 @@ class GaussianGapAdapter(IMSAOutputAdapter):
         """
         # 1. Apply constraints: ReLU (non-negative) -> Round (integer)
         cleaned_actions = torch.round(F.relu(actions)).int()
+
+        if self.max_gaps:
+            cleaned_actions = torch.clamp(cleaned_actions, max=self.max_gaps)
 
         # 2. Convert to Python List of Lists
         if hasattr(cleaned_actions, 'cpu'):

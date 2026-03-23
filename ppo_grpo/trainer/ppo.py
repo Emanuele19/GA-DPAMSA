@@ -32,7 +32,6 @@ class PPOTrainer(BaseTrainer[PPO_Agent]):
             clip_eps=0.2,
             ppo_epochs=4,
             env_mode='sp',
-            entropy_coef=0.01,  # Added explicit entropy coefficient
             value_loss_coef=0.5,  # Added explicit value loss coefficient
             **kwargs
     ):
@@ -49,7 +48,6 @@ class PPOTrainer(BaseTrainer[PPO_Agent]):
         self.clip_eps = clip_eps
         self.ppo_epochs = ppo_epochs
         self.env_mode = env_mode
-        self.entropy_coef = entropy_coef
         self.value_loss_coef = value_loss_coef
 
         # Loss function for the Critic (Value Head)
