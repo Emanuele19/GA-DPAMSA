@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import numpy as np
 from abc import ABC, abstractmethod
 
@@ -11,11 +12,30 @@ class BaseMSAAgent(ABC):
     """
     optimizer: torch.optim.Optimizer
 
-    def __init__(self, actor: IMSAActor, device: str = 'cpu', padding_idx: int = 5):
+    def __init__(self, actor: IMSAActor, device: str = 'cpu', padding_idx: int = 0):
         self.actor = actor
         self.device = device
         self.actor.to(device)
         self.padding_idx = padding_idx
+
+
+    def train(self):
+        """
+        Switches all nn Modules in the agent to train mode.
+        :return:
+        """
+        for attr in vars(self).values():
+            if isinstance(attr, nn.Module):
+                attr.train()
+
+    def eval(self):
+        """
+        Switches all nn Modules in the agent to eval mode.
+        :return:
+        """
+        for attr in vars(self).values():
+            if isinstance(attr, nn.Module):
+                attr.eval()
 
     def build_mask(self, state: torch.Tensor) -> torch.Tensor:
         return state != self.padding_idx

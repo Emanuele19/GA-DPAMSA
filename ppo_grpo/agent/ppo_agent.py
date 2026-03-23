@@ -33,7 +33,7 @@ class PPO_Agent(BaseMSAAgent):
         self.critic.eval()
         with torch.no_grad():
             state_t = torch.tensor(state, dtype=torch.long, device=self.device)
-            mask = (state_t != 0)
+            mask = self.build_mask(state_t)
             value = self.critic.get_value(state_t, mask=mask)
             return value.cpu().numpy()
 

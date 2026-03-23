@@ -91,7 +91,7 @@ class PPOTrainer(BaseTrainer[PPO_Agent]):
         # We collect the trajectory defined by the "Old" policy.
         with torch.no_grad():
             # A. Get Old Policy Distribution
-            old_dist = self.agent.actor.get_distribution(state)
+            old_dist = self.agent.actor.get_distribution(state, mask)
 
             # B. Sample Actions (Continuous)
             old_action_float = old_dist.sample()  # Shape: (Batch, Rows, Len)

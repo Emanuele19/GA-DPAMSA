@@ -77,12 +77,14 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
         # shape: (Batch * Group, Rows, Len)
         state_repeated = state.repeat_interleave(self.group_size, dim=0)
 
+        mask = self.agent.build_mask(state_repeated).float()
+
         # 3. Action Sampling & Evaluation
         # We use no_grad because we are collecting fixed data points (trajectory)
         # The gradients will be calculated later during the PPO optimization loop.
         with torch.no_grad():
             # A. Get Old Policy Distribution
-            old_dist = self.agent.actor.get_distribution(state_repeated)
+            old_dist = self.agent.actor.get_distribution(state_repeated, mask=mask)
 
             # B. Sample Actions (Continuous)
             actions_float = old_dist.sample()  # Shape: (Batch*Group, Rows, Len)
@@ -90,8 +92,6 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             # C. Compute Old Log Probabilities
             # These are the probabilities of the actions *at the time of sampling*.
             # They serve as the denominator in the PPO Ratio (New/Old).
-            mask = self.agent.build_mask(state_repeated).float()
-
             # Sum log_probs over dimensions (Rows, Len) to get probability per sample.
             old_log_probs_raw = old_dist.log_prob(actions_float)
             old_log_probs = (old_log_probs_raw * mask).sum(dim=[1, 2])
@@ -137,7 +137,7 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             # A. Forward Pass (New Policy)
             # The network weights have ostensibly changed (or will change),
             # so we get the 'New' distribution for the SAME state.
-            new_dist = self.agent.actor.get_distribution(state_repeated)
+            new_dist = self.agent.actor.get_distribution(state_repeated, mask=mask)
 
             # B. New Log Probs
             # We evaluate the probability of the *originally sampled actions* # under the *current/new* policy.

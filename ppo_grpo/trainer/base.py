@@ -126,7 +126,7 @@ class BaseTrainer(ABC, Generic[AgentType]):
         pass
 
     def train_epoch(self, dataloader, epoch_idx: int):
-        self.agent.actor.train()
+        self.agent.train()
 
         for batch_idx, batch_data in enumerate(dataloader):
             metrics = self.train_step(batch_data)
