@@ -2,7 +2,7 @@ import csv
 import os
 from tqdm import tqdm
 import copy
-
+import random 
 import config
 from DPAMSA.env import Environment
 from GA import GA
@@ -153,6 +153,47 @@ class NSGA2_GA(GA):
         self.population = new_population
         self.population_score = new_scores
 
+    def crowded_torunament_selection(self, population, distances, fronts, k=2  ):
+        """
+        Select individuals from combined population using crowded tournament selection.
+        retruns a matig_pool (list of selected cromosomes) and their scores
+        """
+
+        rank_map = {}
+        for rank, front in enumerate (fronts):
+            for idx in front:
+                rank_map[idx] = rank
+        
+        mating_pool = []
+        pop_size = len(self.population)
+
+        for _ in range(pop_size):
+            tournament_candidates = random.sample(range(pop_size), k)
+
+            best_idx = None 
+            best_rank = float('inf')
+            best_distance = -float('inf')
+
+            for candidate_idx in tournament_candidates:
+                candidate_rank = rank_map.get(candidate_idx, float('inf'))
+                candidate_distance = distances.get(candidate_idx, 0.0)
+
+                # win who has better rank
+                if candidate_rank < best_rank:
+                    best_idx = candidate_idx
+                    best_rank = candidate_rank
+                    best_distance = candidate_distance
+                
+                # if same rank, win who has the larger crowding distance
+                elif candidate_rank == best_rank:
+                    if candidate_distance > best_distance:
+                        best_idx = candidate_idx
+                        best_distance = candidate_distance
+            
+            mating_pool.append(copy.deepcopy(population[best_idx]))
+        
+        return mating_pool
+    
     def run(self, model_path, debug_mode=False):
 
         self.generate_population()
@@ -160,13 +201,32 @@ class NSGA2_GA(GA):
 
         for i in range(config.GA_ITERATIONS):
 
+            current_score = []
+            for idx, score in enumerate (self.population_score):
+                if len(score) == 3:
+                    _, sp, cs = score
+                else:
+                    sp, cs = score
+                current_score.append((idx, sp, cs))
+            
+            current_fronts = self.non_dominated_sort(current_score)
+            distances = {}
+            for front in current_fronts:
+                front_dist  = self.compute_crowding_distance(front, current_score)
+                distances.update(front_dist)
+            
             # Save parents
             parent_population = copy.deepcopy(self.population)
             parent_scores = copy.deepcopy(self.population_score)
+            
+            mating_pool = self.crowded_torunament_selection(self.population, distances, current_fronts)
+
+            self.population = mating_pool
 
             # Generate offspring
-            self.mutation(model_path)
             self.horizontal_crossover()
+            self.mutation(model_path)
+            
             self.calculate_fitness_score()
 
             offspring_population = copy.deepcopy(self.population)
@@ -180,5 +240,33 @@ class NSGA2_GA(GA):
                 offspring_scores
             )
 
-        best_chromosome, _ = self.hall_of_fame
+        final_scores = []
+        for idx, score in enumerate(self.population_score):
+            if len(score) == 3:
+                _, sp, cs = score
+            else:
+                sp, cs = score
+            final_scores.append((idx, sp, cs))
+
+        final_fronts = self.non_dominated_sort(final_scores)
+        pareto_front_indices = final_fronts[0]
+
+        best_compromise_idx = None
+        best_compromise_score = -float('inf')
+        
+        for idx in pareto_front_indices: 
+            _, sp, cs = final_scores[idx]
+
+            # note: this weghit (ex. 100) 
+            # is in order to balance the scale of SP and CS, 
+            # you can adjust it based on your needs
+            combined_eval = sp + (cs * 100) 
+            
+            if combined_eval > best_compromise_score:
+                best_compromise_score = combined_eval
+                best_compromise_idx = idx
+
+        best_chromosome = self.population[best_compromise_idx]
         return utils.get_nucleotides_seqs(best_chromosome)
+
+    
