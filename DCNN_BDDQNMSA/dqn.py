@@ -129,8 +129,8 @@ class DQNAgent:
             target_q = rewards + (self.gamma * max_next_q * (~dones)) # (B, N)
 
             # debug values
-            v_val = q_out.mean().item()
-            a_val = (q_out.max(dim=2)[0] - q_out.min(dim=2)[0]).mean().item()
+            # v_val = q_out.mean().item()
+            # a_val = (q_out.max(dim=2)[0] - q_out.min(dim=2)[0]).mean().item()
 
         loss = F.mse_loss(current_q, target_q)
         
@@ -144,35 +144,36 @@ class DQNAgent:
         #         if param.grad is not None:
         #             param.grad.data *= 10.0
 
-        total_norm = 0.0
-        for p in self.policy_net.parameters():
-            if p.grad is not None:
-                param_norm = torch.linalg.vector_norm(p.grad, ord=2)
-                total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
+        # total_norm = 0.0
+        # for p in self.policy_net.parameters():
+        #     if p.grad is not None:
+        #         param_norm = torch.linalg.vector_norm(p.grad, ord=2)
+        #         total_norm += param_norm.item() ** 2
+        # total_norm = total_norm ** 0.5
 
-        with torch.no_grad():
-            v_grad_norm = torch.nn.utils.clip_grad_norm_(
-                self.policy_net.value_head.parameters(), float('inf')
-            )
+        # with torch.no_grad():
+        #     v_grad_norm = torch.nn.utils.clip_grad_norm_(
+        #         self.policy_net.value_head.parameters(), float('inf')
+        #     )
 
-            adv_grads = []
-            for _, head in enumerate(self.policy_net.advantage_heads):
-                norm = torch.nn.utils.clip_grad_norm_(
-                    head.parameters(), float('inf')
-                )
-                adv_grads.append(norm)
+        #     adv_grads = []
+        #     for _, head in enumerate(self.policy_net.advantage_heads):
+        #         norm = torch.nn.utils.clip_grad_norm_(
+        #             head.parameters(), float('inf')
+        #         )
+        #         adv_grads.append(norm)
 
-        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1)
+        total_grad_norm = torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1)
         self.optimizer.step()
 
         logging_metrics = {
-            "Debug/Gradient_Norm": total_norm,
+            # "Debug/Gradient_Norm": total_norm,
             "Debug/Avg_Q_Value": current_q.mean().item(),
-            "Debug/V_State_Value": v_val,
-            "Debug/A_Advantage_Spread": a_val,
-            "Debug/V_Grad_Norm": v_grad_norm,
-            "Debug/A_Grad_Norm": adv_grads,
+            "Debug/Total_Grad_Norm": total_grad_norm.item()
+            # "Debug/V_State_Value": v_val,
+            # "Debug/A_Advantage_Spread": a_val,
+            # "Debug/V_Grad_Norm": v_grad_norm,
+            # "Debug/A_Grad_Norm": adv_grads,
         }
     
         return loss.item(), logging_metrics
