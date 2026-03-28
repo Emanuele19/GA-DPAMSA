@@ -169,7 +169,7 @@ class DQNAgent:
         logging_metrics = {
             # "Debug/Gradient_Norm": total_norm,
             # "Debug/Avg_Q_Value": current_q.mean().item(),
-            "Debug/Total_Grad_Norm": total_grad_norm.item()
+            # "Debug/Total_Grad_Norm": total_grad_norm.item()
             # "Debug/V_State_Value": v_val,
             # "Debug/A_Advantage_Spread": a_val,
             # "Debug/V_Grad_Norm": v_grad_norm,
