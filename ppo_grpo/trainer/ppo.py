@@ -202,6 +202,7 @@ class PPOTrainer(BaseTrainer[PPO_Agent]):
             'entropy': total_ent / self.ppo_epochs,
             'avg_reward': rewards.mean().item(),
             'max_reward': rewards.max().item(),
+            'min_reward': rewards.min().item(),
             'SP_Score': metrics['SP'],  # From the rollout evaluation
             'CS_Percent': metrics['CS'],
             'Alignment_Len': metrics['AL']
