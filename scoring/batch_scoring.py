@@ -3,11 +3,12 @@ import torch
 
 def compute_sp_score(
         aligned_seqs: torch.Tensor,
+        gap_token: int,
+        pad_token: int,
         match_reward: float = 4.0,
         mismatch_penalty: float = -4.0,
-        gap_penalty: float = -2.0,
-        gap_token: int = 5,
-        pad_token: int = 0
+        gap_open_penalty: float = -2.0,
+        gap_extend_penalty: float | None = None,
 ) -> torch.Tensor:
     """
     Calculates the Sum-of-Pairs (SP) score for a batch of alignments using GPU Broadcasting.
@@ -26,9 +27,10 @@ def compute_sp_score(
         aligned_seqs: (Batch, Rows, Len) Integer Tensor containing the aligned sequences.
         match_reward: Score added for identical non-gap characters (default: 4.0).
         mismatch_penalty: Score added (usually negative) for different non-gap characters (default: -4.0).
-        gap_penalty: Score added (usually negative) when a residue is aligned with a gap (default: -2.0).
-        gap_token: The integer ID representing a Gap (default: 5).
-        pad_token: The integer ID representing Technical Padding (default: 0).
+        gap_open_penalty: Score added (usually negative) when a residue is aligned with the first gap of a streak (default: -2.0).
+        gap_extend_penalty: Score added (usually negative) when a residue is aligned with the extension of a gap streak (default: None).
+        gap_token: The integer ID representing a Gap.
+        pad_token: The integer ID representing Technical Padding.
 
     Returns:
         scores: (Batch,) Float Tensor containing the total SP score for each alignment in the batch.
@@ -80,6 +82,36 @@ def compute_sp_score(
     #    Case: (Residue vs Gap) or (Gap vs Residue).
     gaps = (is_gap_i ^ is_gap_j)
 
+    # 3.1 GAP SCORING LOGIC
+    # we need to manage the eventual affine gap scoring logic
+    if gap_extend_penalty is not None:
+        # Shifted masks
+        # Every gap in the first column is open
+        is_gap_i_prev = torch.nn.functional.pad(is_gap_i[..., :-1], (1, 0), value=False)
+        is_gap_j_prev = torch.nn.functional.pad(is_gap_j[..., :-1], (1, 0), value=False)
+
+        # i has gap, j has residue
+        i_gaps = is_gap_i & (~is_gap_j)
+        i_gap_open = i_gaps & (~is_gap_i_prev)
+        i_gap_extend = i_gaps & is_gap_i_prev
+
+        # j has gap, i has residue
+        j_gaps = is_gap_j & (~is_gap_i)
+        j_gap_open = j_gaps & (~is_gap_j_prev)
+        j_gap_extend = j_gaps & is_gap_j_prev
+
+        gap_opens = i_gap_open | j_gap_open
+        gap_extends = i_gap_extend | j_gap_extend
+
+        gap_scores = (
+                gap_opens.float() * gap_open_penalty +
+                gap_extends.float() * gap_extend_penalty
+        )
+    else:
+        # Legacy behavior: flat penalty
+        gap_scores = gaps.float() * gap_open_penalty
+
+
     # =========================================================================
     # 4. WEIGHTED SUMMATION
     # =========================================================================
@@ -89,7 +121,7 @@ def compute_sp_score(
     scores_tensor = (
             matches.float() * match_reward +
             mismatches.float() * mismatch_penalty +
-            gaps.float() * gap_penalty
+            gap_scores
     )
 
     # Zero out invalid scores (those coming from padding)

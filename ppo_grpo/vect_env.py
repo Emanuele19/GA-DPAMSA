@@ -33,7 +33,8 @@ class VectorizedEnvironment:
         # --- Reward Weights ---
         self.match_reward = getattr(config, 'MATCH_REWARD', 4.0)
         self.mismatch_penalty = getattr(config, 'MISMATCH_PENALTY', -4.0)
-        self.gap_penalty = getattr(config, 'GAP_PENALTY', -2.0)
+        self.gap_open_penalty = getattr(config, 'GAP_OPEN_PENALTY', None) or getattr(config, 'GAP_PENALTY', -4.0)
+        self.gap_extend_penalty = getattr(config, 'GAP_EXTEND_PENALTY', None)
 
     def reconstruct_alignment(self, raw_seqs: torch.Tensor, gap_counts: torch.Tensor) -> torch.Tensor:
         """
@@ -118,7 +119,8 @@ class VectorizedEnvironment:
             aligned_matrix,
             match_reward=self.match_reward,
             mismatch_penalty=self.mismatch_penalty,
-            gap_penalty=self.gap_penalty,
+            gap_open_penalty=self.gap_open_penalty,
+            gap_extend_penalty=self.gap_extend_penalty,
             gap_token=self.gap_token,
             pad_token=self.pad_token
         )
