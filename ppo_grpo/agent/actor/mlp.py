@@ -25,6 +25,7 @@ class MSA_Actor(IMSAActor):
             nn.Linear(hidden_dim, output_dim)
         )
 
+        # To turn on if training is initially unstable
         # self._init_last_layer()
 
     def _init_last_layer(self):
