@@ -137,7 +137,8 @@ class BaseTrainer(ABC, Generic[AgentType]):
 
             if batch_idx % 100 == 0:
                 loss_str = f"{metrics.get('loss', 0):.4f}"
-                rew_str = f"{metrics.get('avg_reward', 0):.2f}"
+                #rew_str = f"{metrics.get('avg_reward', 0):.2f}"
+                rew_str = f" (Min: {metrics.get('min_reward', 0):.2f}, Max: {metrics.get('max_reward', 0):.2f})"
                 self.logger.info(
                     f"Epoch {epoch_idx} | Step {batch_idx} | "
                     f"Loss: {loss_str} | Reward: {rew_str}"

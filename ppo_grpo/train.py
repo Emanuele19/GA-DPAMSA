@@ -8,18 +8,44 @@ import config
 from utils import setup_logger
 from dataset_module import MSADataset
 
-from agent.backbone.new import RobustBackbone
-from agent.output_adapter.gaussian import GaussianGapAdapter
-from agent.actor.mlp import MSA_Actor
-from agent.critic.linear import MSA_Critic
-from agent.ppo_agent import PPO_Agent
-from agent.grpo_agent import GRPO_Agent
+from ppo_grpo.agent.backbone.new import RobustBackbone
+from ppo_grpo.agent.output_adapter.gaussian import GaussianGapAdapter
+from ppo_grpo.agent.actor.mlp import MSA_Actor
+from ppo_grpo.agent.critic.linear import MSA_Critic
+from ppo_grpo.agent.ppo_agent import PPO_Agent
+from ppo_grpo.agent.grpo_agent import GRPO_Agent
 
-from trainer.ppo import PPOTrainer
-from trainer.grpo import GRPOTrainer
+from ppo_grpo.trainer.ppo import PPOTrainer
+from ppo_grpo.trainer.grpo import GRPOTrainer
 
-from data.integer import IntegerStatePreprocessor
+from ppo_grpo.data.integer import IntegerStatePreprocessor
 
+
+def open_tensorboard(log_dir):
+    import subprocess, time, webbrowser
+    """
+    Launch TensorBoard and open it in the default web browser.
+
+    Parameters:
+    -----------
+    - log_dir (str): Path to the directory where TensorBoard logs are stored.
+
+    Returns:
+    --------
+    - subprocess.Popen: The process running TensorBoard (can be terminated later).
+    """
+    try:
+        print("Starting TensorBoard on http://localhost:6006...")
+        tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", log_dir, "--port", "6006"])
+        time.sleep(3)
+        webbrowser.open("http://localhost:6006")
+
+        return tensorboard_process
+
+    except Exception as e:
+        print(f"Error starting TensorBoard: {e}")
+        return None
+    
 
 def get_collate_fn():
     """
@@ -56,6 +82,8 @@ def main():
     # Initialize TensorBoard Writer
     writer = SummaryWriter(log_dir=config.TENSORBOARD_PATH)
 
+    #Start TensorBoard 
+    tb_process = open_tensorboard(config.TENSORBOARD_PATH)
     # 2. DATASET LOADING
     # We use the HDF5 dataset which is efficient for large bio-data
     dataset_path = os.path.join(config.FASTA_FILES_PATH, 'orthodb_v12/hdf5_3x30.h5')
@@ -163,7 +191,8 @@ def main():
             logger=logger,
             writer=writer,
             output_dir=config.MODEL_WEIGHTS_PATH,
-            padding_idx=pad_idx
+            padding_idx=pad_idx,
+            config=config
         )
 
     else:

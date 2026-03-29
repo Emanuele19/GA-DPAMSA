@@ -206,6 +206,7 @@ class GRPOTrainer(BaseTrainer[GRPO_Agent]):
             'loss': avg_loss,
             'entropy': avg_entropy,
             'avg_reward': rewards.mean().item(),
+            'min_reward': rewards.min().item(),
             'max_reward': rewards.max().item(),
             'SP_Score': metrics['SP'],  # From the last evaluation pass
             'CS_Percent': metrics['CS'],
