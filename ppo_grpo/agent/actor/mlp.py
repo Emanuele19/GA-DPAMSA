@@ -14,9 +14,6 @@ class MSA_Actor(IMSAActor):
     def __init__(self, backbone: IMSABackbone, adapter: IMSAOutputAdapter):
         super().__init__(backbone, adapter)
 
-        self.backbone = backbone
-        self.adapter = adapter
-
         hidden_dim = backbone.output_dim
         output_dim = adapter.logit_dim
 

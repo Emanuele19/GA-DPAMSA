@@ -163,7 +163,8 @@ def main():
             logger=logger,
             writer=writer,
             output_dir=config.MODEL_WEIGHTS_PATH,
-            padding_idx=pad_idx
+            padding_idx=pad_idx,
+            config = config,
         )
 
     else:
