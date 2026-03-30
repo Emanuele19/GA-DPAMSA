@@ -84,6 +84,24 @@ def _run_dcnnmsa_worker(dataset_path, model_name):
     )
     return "DCNNMSA", csv_path
 
+def _run_oneshot_rl_worker(dataset_path, model_name, algo_name):
+    """
+    Worker process per PPO e GRPO.
+    algo_name sarà "PPO" o "GRPO" e serve a salvare i file nelle cartelle giuste.
+    """
+    from ppo_grpo.inference import run_inference
+    
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, f'{algo_name}/{algo_name}_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, f'{algo_name}/{algo_name}_results.txt')
+    
+    run_inference(
+        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, model_name),
+        data_folder = dataset_path,
+        csv_file = csv_path,
+        output_file = out_path,
+        algo_name = algo_name
+    )
+    return algo_name, csv_path
 
 def main():
     """
@@ -132,6 +150,14 @@ def main():
                 jobs.append(
                     executor.submit(_run_external_tool, tool_name, file_paths, DATASET_NAME)
                 )
+        
+        if choice == 4:
+            jobs.append(
+                executor.submit(_run_oneshot_rl_worker, dataset_path, GRPO_MODEL, "GRPO")
+            )
+            jobs.append(
+                executor.submit(_run_oneshot_rl_worker, dataset_path, PPO_MODEL, "PPO")
+            )
 
         # Progress tracking
         for future in tqdm(as_completed(jobs), total=len(jobs), desc="Running benchmarks"):

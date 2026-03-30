@@ -576,10 +576,10 @@ def display_menu():
     1. GA-DPAMSA vs DPAMSA
     2. GA-DPAMSA vs Other MSA Tools
     3. GA-DPAMSA vs DPAMSA vs Other MSA Tools
-
+    4. GA-DPAMSA vs DPMASA vs GRPO
     Returns:
     --------
-    - int: The user's selected option (1, 2, or 3).
+    - int: The user's selected option (1, 2, 3 or 4).
 
     Example:
     --------
@@ -588,7 +588,8 @@ def display_menu():
     1. GA-DPAMSA vs DPAMSA
     2. GA-DPAMSA vs Other MSA Tools
     3. GA-DPAMSA vs DPAMSA vs Other MSA Tools
-    Enter your choice (1, 2, or 3): 2
+    4. GA-DPAMSA vs DPAMSA vs GRPO
+    Enter your choice (1, 2, 3 or 4): 2
     >>> print(choice)
     2  # User selected option 2
     """
@@ -596,17 +597,18 @@ def display_menu():
     print("1. GA-DPAMSA vs DPAMSA")
     print("2. GA-DPAMSA vs Other MSA Tools")
     print("3. GA-DPAMSA vs DPAMSA vs Other MSA Tools")
+    print("4. GA-DPAMSA vs DPAMSA vs GRPO")
 
     while True:
         try:
             # Request user input and convert to an integer
-            choice = int(input("Enter your choice (1, 2, or 3): "))
+            choice = int(input("Enter your choice (1, 2, 3 or 4): "))
 
-            # Validate input (must be 1, 2, or 3)
-            if choice in [1, 2, 3]:
+            # Validate input (must be 1, 2, 3 or 4)
+            if choice in [1, 2, 3, 4]:
                 return choice
             else:
-                print("Please select a valid option (1, 2, or 3).")
+                print("Please select a valid option (1, 2, 3 or 4).")
         except ValueError:
             print("Invalid input. Please enter a number.")
 
