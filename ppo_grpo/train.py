@@ -230,15 +230,15 @@ def main():
 
             # Periodic Checkpointing
             if (epoch + 1) % config.SAVE_FREQ == 0:
-                trainer.save_checkpoint(f"checkpoint_ep{epoch + 1}.pt")
+                trainer.save_checkpoint(f"checkpoint_ep{epoch + 1}_{config.ALGO}.pt")
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted manually (Ctrl+C). Saving emergency checkpoint...")
-        trainer.save_checkpoint("interrupted_save.pt")
+        trainer.save_checkpoint(f"interrupted_save_{config.ALGO}.pt")
 
     # 6. CLEANUP & FINAL SAVE
     logger.info("Saving final model...")
-    trainer.save_checkpoint("final_model.pt")
+    trainer.save_checkpoint(f"final_model_{config.ALGO}.pt")
 
     writer.close()
 

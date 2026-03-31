@@ -16,7 +16,7 @@ from ppo_grpo.agent.actor.mlp import MSA_Actor
 
 import config, csv
 
-def run_inference(model_path: str, data_folder: str, output_file: str, csv_file: str, n_seq: int = 3, vocab_size: int = 6):
+def run_inference(model_path: str, data_folder: str, output_file: str, csv_file: str, n_seq: int = 3, vocab_size: int = 6, algo_name: str = "GRPO"):
     logger = setup_logger()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -43,7 +43,7 @@ def run_inference(model_path: str, data_folder: str, output_file: str, csv_file:
     # agente può essere PPO o GRPO, ma in questo caso usiamo GRPO
     actor = MSA_Actor(backbone, adapter)  # Passiamo None, caricheremo
 
-    agent = GRPO_Agent(actor, device)
+    agent = GRPO_Agent(actor, device=device)
 
     # Carichiamo i pesi
     model_name = os.path.basename(model_path)
@@ -64,7 +64,7 @@ def run_inference(model_path: str, data_folder: str, output_file: str, csv_file:
         for fasta_content in tqdm(dataset):
             # Preprocessing (Rimuoviamo gap preesistenti e passiamo a tensore)
             # FastaDataset restituisce una lista di liste di interi
-            raw_seqs = fasta_content.sequences 
+            raw_seqs = fasta_content.tensor.tolist()  # Convertiamo in lista di liste di interi 
             state_tensor = preprocessor([raw_seqs], sanitize=True) 
             
             # Convertiamo in numpy array per darlo in pasto a get_action
@@ -87,9 +87,12 @@ def run_inference(model_path: str, data_folder: str, output_file: str, csv_file:
                 'SP': metrics.get('SP', reward),
                 'EM': metrics.get('EM', 0),
                 'CS': metrics.get('CS', 0),
-                'aligned': [decoder.decode(seq) for seq in aligned_seqs_int] 
+                'aligned': decoder.decode_batch(aligned_seqs_int) 
             }
             inference_results.append(res)
+
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    os.makedirs(os.path.dirname(csv_file), exist_ok=True)
 
     save_to_disk(inference_results, output_file, csv_file)
     print(f"\nInference completed successfully.")

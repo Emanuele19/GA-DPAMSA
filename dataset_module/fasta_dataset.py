@@ -33,6 +33,11 @@ class FastaContent:
         return len(self.__sequences)
 
     @property
+    def sequences(self) -> list[str]:
+        self.__ensure_loaded()
+        return self.__sequences
+    
+    @property
     def sequence_length(self) -> int:
         self.__ensure_loaded()
         return len(self.__sequences[0]) if self.__sequences else 0
@@ -43,7 +48,7 @@ class FastaContent:
     
     @property
     def path(self) -> str:
-        return self.path
+        return self.__path
 
 
 
@@ -64,6 +69,13 @@ class _FastaItem(Dataset):
     def __getitem__(self, i):
         # Carica e codifica il singolo file
         return FastaContent(self.paths[i], self.encoder)
+
+def custom_collate_fn(batch):
+    """
+    Sostituisce la lambda x: x[0]. Essendo una funzione definita 
+    a livello globale, Python riesce a farne il pickle senza problemi.
+    """
+    return batch[0]
 
 class FastaDataset:
     """
@@ -118,7 +130,7 @@ class FastaDataset:
             prefetch_factor=self.__prefetch_factor,
             shuffle=False,
             # Necessario per restituire oggetti complessi come FastaContent
-            collate_fn=lambda x: x[0] 
+            collate_fn=custom_collate_fn
         )
         for fasta in loader:
             yield fasta
