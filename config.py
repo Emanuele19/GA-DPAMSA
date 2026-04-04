@@ -24,7 +24,7 @@ import os
 
 
 # Algorithm Selection: 'GRPO' or 'PPO'
-ALGO = 'GRPO'
+ALGO = 'PPO'
 
 # Dimensions
 AGENT_WINDOW_COLUMN = 30
@@ -159,6 +159,10 @@ DATASETS_CSV_PATH = os.path.join(CSV_PATH, "datasets")
 INFERENCE_CSV_PATH = os.path.join(CSV_PATH, "inference")
 DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "DPAMSA")
 GA_DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "GA-DPAMSA")
+
+GRPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "GRPO")
+PPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "PPO")
+
 CHARTS_PATH = os.path.join(BENCHMARKS_PATH, "charts")
 
 # Ensure directories exist, creating them if they don't
