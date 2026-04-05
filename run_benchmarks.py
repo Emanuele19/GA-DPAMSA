@@ -25,7 +25,7 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # Dataset and Model Configuration
 # ===========================
 
-DATASET_NAME = 'random_dataset'  # Name of the dataset to benchmark (must match generated dataset)
+DATASET_NAME = 'orthodb_v12/inference_benchmark_ready'  # Name of the dataset to benchmark (must match generated dataset)
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
 DCNNMSA_MODEL = 'msa_model_ep18999.pth'
@@ -76,10 +76,10 @@ def _run_dcnnmsa_worker(dataset_path, model_name):
     Worker process for DCNNMSA.
     """
     dataset = FastaDataset(dataset_path, encoder=encoder)
-    from DCNNMSA.inference import run_inference
+    from DCNN_BDDQN.inference import run_inference
 
-    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
-    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNN_BDDQN_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNN_BDDQN_results.txt')
     run_inference(
         model_path = os.path.join(config.MODEL_WEIGHTS_PATH, DCNNMSA_MODEL),
         data_folder = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME),
