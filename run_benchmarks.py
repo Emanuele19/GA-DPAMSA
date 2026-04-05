@@ -28,7 +28,7 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 DATASET_NAME = 'random_dataset'  # Name of the dataset to benchmark (must match generated dataset)
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
-DCNNMSA_MODEL = 'msa_model_ep19000.pth'
+DCNNMSA_MODEL = 'msa_model_ep18999.pth'
 PPO_MODEL ='final_model_PPO.pt'
 GRPO_MODEL ='final_model_GRPO.pt'
 
@@ -141,9 +141,9 @@ def main():
             executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)
         )
 
-        #jobs.append(
-        #    executor.submit(_run_dcnnmsa_worker, dataset_path, DCNNMSA_MODEL)
-        #)
+        jobs.append(
+            executor.submit(_run_dcnnmsa_worker, dataset_path, DCNNMSA_MODEL)
+        )
 
         # DPAMSA if choice is 1 or 3
         if choice == 1 or choice == 3:
@@ -163,9 +163,9 @@ def main():
             jobs.append(
                 executor.submit(_run_oneshot_rl_worker, dataset_path, GRPO_MODEL, "GRPO")
             )
-            #jobs.append(
-            #    executor.submit(_run_oneshot_rl_worker, dataset_path, PPO_MODEL, "PPO")
-            #)
+            jobs.append(
+                executor.submit(_run_oneshot_rl_worker, dataset_path, PPO_MODEL, "PPO")
+            )
 
         # Progress tracking
         for future in tqdm(as_completed(jobs), total=len(jobs), desc="Running benchmarks"):

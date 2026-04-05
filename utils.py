@@ -1029,7 +1029,10 @@ def _find_report_file(tool_name: str, dataset_name: str) -> str | None:
             return hits[0]
 
         return None
-
+    
+    if tool_name in ["GRPO", "PPO"]:
+        p = os.path.join(config.GRPO_REPORTS_PATH, f"{tool_name}_results.txt")
+        return p if os.path.exists(p) else None
 
     # fallback (non necessario, ma innocuo)
     p = os.path.join(config.REPORTS_PATH, f"{dataset_name}.txt")
@@ -1455,14 +1458,14 @@ def generate_compact_benchmark_report(
             f.write("</div>")  # grid2eq
 
         # Artifacts
-        f.write("<h2>Artifacts</h2>")
-        f.write("<div class='card'>")
-        f.write("<ul>")
-        f.write("<li><b>summary.csv</b> — per-tool stats</li>")
-        f.write("<li><b>paired_deltas.csv</b> — per-file deltas vs baseline</li>")
-        f.write("<li><b>compact_report.html</b> — this page</li>")
-        f.write("</ul>")
-        f.write("</div>")
+        #f.write("<h2>Artifacts</h2>")
+        #f.write("<div class='card'>")
+        #f.write("<ul>")
+        #f.write("<li><b>summary.csv</b> — per-tool stats</li>")
+        #f.write("<li><b>paired_deltas.csv</b> — per-file deltas vs baseline</li>")
+        #f.write("<li><b>compact_report.html</b> — this page</li>")
+        #f.write("</ul>")
+        #f.write("</div>")
 
         f.write("</body></html>")
 
