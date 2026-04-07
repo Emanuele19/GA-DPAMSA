@@ -22,9 +22,20 @@ Co-Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # --- config.py REQUIRED ADDITIONS ---
 import os
 
+# ===========================
+# Nucleotide Encoding
+# ===========================
+GAP_CHARACTER = '-'
+PAD_CHARACTER = 'P'
+NUCLEOTIDE_ENCODING = {PAD_CHARACTER: 0, 'A': 1, 'T': 2, 'C': 3, 'G': 4, GAP_CHARACTER: 5, 'N': 6,
+                       PAD_CHARACTER.lower(): 0, 'a': 1, 't': 2, 'c': 3, 'g': 4, GAP_CHARACTER: 5, 'n': 6}
+
+NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_CHARACTER}
+
+
 
 # Algorithm Selection: 'GRPO' or 'PPO'
-ALGO = 'GRPO'
+ALGO = 'PPO'
 
 # Dimensions
 AGENT_WINDOW_COLUMN = 30
@@ -65,7 +76,7 @@ VOCAB_SIZE = len(NUCLEOTIDES)
 BASE_DATASETS_PATH = os.path.join("../datasets")
 FASTA_FILES_PATH = os.path.join(BASE_DATASETS_PATH, "fasta_files")
 
-
+'''
 NUCLEOTIDE_ENCODING = {
     'A': 1, 'a': 1,
     'T': 2, 't': 2,
@@ -84,6 +95,8 @@ NUCLEOTIDE_DECODING = {
     5: '-',
     6: 'N'
 }
+'''
+
 
 
 # ===========================
@@ -92,11 +105,19 @@ NUCLEOTIDE_DECODING = {
 GAP_PENALTY = -4  # Penalty for inserting a gap
 MISMATCH_PENALTY = -4  # Penalty for a mismatch
 MATCH_REWARD = 4  # Reward for a correct match
+
+TIME_PENALTY = -0.2 # Penalty for time passing. To avoid stalls.
+MICROTIME_PENALTY = TIME_PENALTY / 10 # Changes the Q values by a small amount to avoid persistent actions
+PENALTY_MULTIPLIER = 1.5 # For VERY bad actions
+
 MAX_EPISODE = 20000  # Maximum number of training episodes
 #BATCH_SIZE = 128  # Number of experiences sampled per training step
 REPLAY_MEMORY_SIZE = 1000  # Capacity of replay memory buffer
 ALPHA = 1e-5  # Learning rate for the optimizer
 EPSILON = 0.95  # Initial epsilon value for ε-greedy policy
+
+MIN_EPSILON = 0.2  # Minimum epsilon value
+
 GAMMA = 0.90  # Discount factor for Q-learning
 EPSILON_DECAY = 0.9998  # Decay rate for epsilon (e_t = e_{t-1} * decay)
 UPDATE_ITERATION = 1000  # Number of iterations before updating the target network
@@ -159,6 +180,10 @@ DATASETS_CSV_PATH = os.path.join(CSV_PATH, "datasets")
 INFERENCE_CSV_PATH = os.path.join(CSV_PATH, "inference")
 DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "DPAMSA")
 GA_DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "GA-DPAMSA")
+
+GRPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "GRPO")
+PPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "PPO")
+
 CHARTS_PATH = os.path.join(BENCHMARKS_PATH, "charts")
 
 # Ensure directories exist, creating them if they don't

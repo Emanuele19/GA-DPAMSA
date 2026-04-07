@@ -576,10 +576,10 @@ def display_menu():
     1. GA-DPAMSA vs DPAMSA
     2. GA-DPAMSA vs Other MSA Tools
     3. GA-DPAMSA vs DPAMSA vs Other MSA Tools
-
+    4. GA-DPAMSA vs DPMASA vs GRPO
     Returns:
     --------
-    - int: The user's selected option (1, 2, or 3).
+    - int: The user's selected option (1, 2, 3 or 4).
 
     Example:
     --------
@@ -588,7 +588,8 @@ def display_menu():
     1. GA-DPAMSA vs DPAMSA
     2. GA-DPAMSA vs Other MSA Tools
     3. GA-DPAMSA vs DPAMSA vs Other MSA Tools
-    Enter your choice (1, 2, or 3): 2
+    4. GA-DPAMSA vs DPAMSA vs GRPO
+    Enter your choice (1, 2, 3 or 4): 2
     >>> print(choice)
     2  # User selected option 2
     """
@@ -596,17 +597,18 @@ def display_menu():
     print("1. GA-DPAMSA vs DPAMSA")
     print("2. GA-DPAMSA vs Other MSA Tools")
     print("3. GA-DPAMSA vs DPAMSA vs Other MSA Tools")
+    print("4. GA-DPAMSA vs DPAMSA vs GRPO")
 
     while True:
         try:
             # Request user input and convert to an integer
-            choice = int(input("Enter your choice (1, 2, or 3): "))
+            choice = int(input("Enter your choice (1, 2, 3 or 4): "))
 
-            # Validate input (must be 1, 2, or 3)
-            if choice in [1, 2, 3]:
+            # Validate input (must be 1, 2, 3 or 4)
+            if choice in [1, 2, 3, 4]:
                 return choice
             else:
-                print("Please select a valid option (1, 2, or 3).")
+                print("Please select a valid option (1, 2, 3 or 4).")
         except ValueError:
             print("Invalid input. Please enter a number.")
 
@@ -1027,7 +1029,10 @@ def _find_report_file(tool_name: str, dataset_name: str) -> str | None:
             return hits[0]
 
         return None
-
+    
+    if tool_name in ["GRPO", "PPO"]:
+        p = os.path.join(config.GRPO_REPORTS_PATH, f"{tool_name}_results.txt")
+        return p if os.path.exists(p) else None
 
     # fallback (non necessario, ma innocuo)
     p = os.path.join(config.REPORTS_PATH, f"{dataset_name}.txt")
@@ -1453,14 +1458,14 @@ def generate_compact_benchmark_report(
             f.write("</div>")  # grid2eq
 
         # Artifacts
-        f.write("<h2>Artifacts</h2>")
-        f.write("<div class='card'>")
-        f.write("<ul>")
-        f.write("<li><b>summary.csv</b> — per-tool stats</li>")
-        f.write("<li><b>paired_deltas.csv</b> — per-file deltas vs baseline</li>")
-        f.write("<li><b>compact_report.html</b> — this page</li>")
-        f.write("</ul>")
-        f.write("</div>")
+        #f.write("<h2>Artifacts</h2>")
+        #f.write("<div class='card'>")
+        #f.write("<ul>")
+        #f.write("<li><b>summary.csv</b> — per-tool stats</li>")
+        #f.write("<li><b>paired_deltas.csv</b> — per-file deltas vs baseline</li>")
+        #f.write("<li><b>compact_report.html</b> — this page</li>")
+        #f.write("</ul>")
+        #f.write("</div>")
 
         f.write("</body></html>")
 

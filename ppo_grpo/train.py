@@ -198,12 +198,31 @@ def main():
     else:
         raise ValueError(f"Unknown Algorithm in config: {config.ALGO}")
 
+    # ---------------------------------------------------------
+    # 4.5 RESUME FROM CHECKPOINT (Resume Training)
+    # ---------------------------------------------------------
+    # Set this to True to enable resuming from a checkpoint. Make sure to specify the correct epoch number and checkpoint file.
+    RESUME_TRAINING = True
+    START_EPOCH = 30  # change this to the epoch number you want to resume from 
+    CHECKPOINT_FILE = f"checkpoint_ep{START_EPOCH}.pt" 
+    
+    if RESUME_TRAINING:
+        checkpoint_path = os.path.join(config.MODEL_WEIGHTS_PATH, CHECKPOINT_FILE)
+        if os.path.exists(checkpoint_path):
+            logger.info(f"🔄 Ripristino addestramento dal checkpoint: {checkpoint_path}")
+            agent.load(checkpoint_path)
+        else:
+            logger.warning(f"⚠️ Checkpoint {checkpoint_path} non trovato! Inizio da zero.")
+            START_EPOCH = 0
+    else:
+        START_EPOCH = 0
+
     # 5. TRAINING LOOP
-    logger.info(f"Starting Training Loop for {config.MAX_EPOCH} epochs...")
+    logger.info(f"Starting Training Loop for {config.MAX_EPOCH - START_EPOCH} epochs...")
 
     try:
-        for epoch in range(config.MAX_EPOCH):
-            logger.info(f"--- Epoch {epoch + 1}/{config.MAX_EPOCH} ---")
+        for epoch in (range(config.MAX_EPOCH - START_EPOCH)):
+            logger.info(f"--- Epoch {epoch + 1}/{config.MAX_EPOCH - START_EPOCH} ---")
 
             # The trainer handles the iteration over the dataloader
             # and performs the specific optimization steps (GRPO or PPO)
@@ -211,15 +230,15 @@ def main():
 
             # Periodic Checkpointing
             if (epoch + 1) % config.SAVE_FREQ == 0:
-                trainer.save_checkpoint(f"checkpoint_ep{epoch + 1}.pt")
+                trainer.save_checkpoint(f"checkpoint_ep{epoch + 1}_{config.ALGO}.pt")
 
     except KeyboardInterrupt:
         logger.warning("Training interrupted manually (Ctrl+C). Saving emergency checkpoint...")
-        trainer.save_checkpoint("interrupted_save.pt")
+        trainer.save_checkpoint(f"interrupted_save_{config.ALGO}.pt")
 
     # 6. CLEANUP & FINAL SAVE
     logger.info("Saving final model...")
-    trainer.save_checkpoint("final_model.pt")
+    trainer.save_checkpoint(f"final_model_{config.ALGO}.pt")
 
     writer.close()
 

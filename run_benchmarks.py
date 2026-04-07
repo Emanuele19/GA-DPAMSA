@@ -6,6 +6,7 @@ import utils
 
 from dataset_module import FastaDataset, SequenceEncoder
 
+
 """
 Benchmarking Script for MSA Methods
 
@@ -24,10 +25,12 @@ Author: https://github.com/FLaTNNBio/GA-DPAMSA
 # Dataset and Model Configuration
 # ===========================
 
-DATASET_NAME = 'synthetic_dataset_3x30bp'
+DATASET_NAME = 'orthodb_v12/inference_benchmark_ready'  # Name of the dataset to benchmark (must match generated dataset)
 DPAMSA_MODEL = 'model_3x30'
 GA_DPAMSA_MODEL = 'model_3x30'
-DCNNMSA_MODEL = 'msa_model_ep19000.pth'
+DCNNMSA_MODEL = 'msa_model_ep18999.pth'
+PPO_MODEL ='final_model_PPO.pt'
+GRPO_MODEL ='final_model_GRPO.pt'
 
 encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 
@@ -36,6 +39,7 @@ encoder = SequenceEncoder(config.NUCLEOTIDE_ENCODING)
 # ===========================
 
 
+import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
@@ -72,10 +76,10 @@ def _run_dcnnmsa_worker(dataset_path, model_name):
     Worker process for DCNNMSA.
     """
     dataset = FastaDataset(dataset_path, encoder=encoder)
-    from DCNNMSA.inference import run_inference
+    from DCNN_BDDQN.inference import run_inference
 
-    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNNMSA_results.csv')
-    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNNMSA_results.txt')
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, 'DCNNMSA/DCNN_BDDQN_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, 'DCNNMSA/DCNN_BDDQN_results.txt')
     run_inference(
         model_path = os.path.join(config.MODEL_WEIGHTS_PATH, DCNNMSA_MODEL),
         data_folder = os.path.join(config.FASTA_FILES_PATH, DATASET_NAME),
@@ -84,6 +88,24 @@ def _run_dcnnmsa_worker(dataset_path, model_name):
     )
     return "DCNNMSA", csv_path
 
+def _run_oneshot_rl_worker(dataset_path, model_name, algo_name):
+    """
+    Worker process per PPO e GRPO.
+    algo_name sarà "PPO" o "GRPO" e serve a salvare i file nelle cartelle giuste.
+    """
+    from ppo_grpo.inference import run_inference
+    
+    csv_path = os.path.join(config.INFERENCE_CSV_PATH, f'{algo_name}/{algo_name}_results.csv')
+    out_path = os.path.join(config.REPORTS_PATH, f'{algo_name}/{algo_name}_results.txt')
+    
+    run_inference(
+        model_path = os.path.join(config.MODEL_WEIGHTS_PATH, model_name),
+        data_folder = dataset_path,
+        csv_file = csv_path,
+        output_file = out_path,
+        algo_name = algo_name
+    )
+    return algo_name, csv_path
 
 def main():
     """
@@ -109,7 +131,11 @@ def main():
     # Costruiamo la lista di job da lanciare in parallelo
     jobs = []
 
-    with ProcessPoolExecutor() as executor:
+    # Creiamo un contesto 'spawn' sicuro per le GPU
+    ctx = mp.get_context('spawn')
+    
+    # Passiamo il contesto all'executor
+    with ProcessPoolExecutor(mp_context=ctx) as executor:
         # GA-DPAMSA
         jobs.append(
             executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)
@@ -132,6 +158,14 @@ def main():
                 jobs.append(
                     executor.submit(_run_external_tool, tool_name, file_paths, DATASET_NAME)
                 )
+        
+        if choice == 4 or choice == 3:
+            jobs.append(
+                executor.submit(_run_oneshot_rl_worker, dataset_path, GRPO_MODEL, "GRPO")
+            )
+            jobs.append(
+                executor.submit(_run_oneshot_rl_worker, dataset_path, PPO_MODEL, "PPO")
+            )
 
         # Progress tracking
         for future in tqdm(as_completed(jobs), total=len(jobs), desc="Running benchmarks"):
@@ -140,6 +174,9 @@ def main():
 
     # Generate performance plots for the selected tools
     utils.plot_metrics(tool_csv_paths, DATASET_NAME)
+
+    # Generate compact benchmark report comparing tools
+    utils.generate_compact_benchmark_report(tool_csv_paths, DATASET_NAME, dataset_path)
 
 
 if __name__ == "__main__":
