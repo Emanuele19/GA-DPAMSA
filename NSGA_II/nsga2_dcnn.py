@@ -1,3 +1,5 @@
+import os
+
 import torch 
 import config
 import utils
@@ -62,32 +64,26 @@ class NSGA2_DCNN_GA(NSGA2_GA):
                     sub_genes.append(5)
                 sub_board.append(sub_genes)
 
-            # --- INIZIO INTEGRAZIONE DCNN_BDDQN ---
-            
-            # CORREZIONE 1: Convertiamo la lista in Tensore prima di passarla all'Environment
+            # --- START DCNN_BDDQN ---
             tensor_sub_board = torch.tensor(sub_board, dtype=torch.long)
             env = Environment(tensor_sub_board)
             
-            # CORREZIONE 2: Usiamo env.N invece di env.row
-            agent = DQNAgent(n_sequences=env.N, vocab_size=6) 
-            agent.load(model_path)
+            # ✅ FIX PERFORMANCE: Salviamo l'agente in 'self' così sopravvive alle generazioni
+            if getattr(self, 'agent', None) is None:
+                self.agent = DQNAgent(n_sequences=env.N, vocab_size=6) 
+                self.agent.load(model_path)
             
             state = env.reset()
 
             # Ciclo di risoluzione
             while True:
-                action = agent.predict(state)
-                
-                # CORREZIONE 3: spacchettiamo 4 valori (il primo è il next_state nel nuovo codice)
+                # Usa self.agent invece di agent
+                action = self.agent.predict(state)
                 next_state, reward, done, is_stalling = env.step(action)
-                
                 state = next_state
-                
-                # CORREZIONE 4: Check sul booleano
-                if done: 
+                if done:
                     break
 
-            # CORREZIONE 5: Estraiamo l'allineamento tramite l'apposito getter (non serve più env.padding())
             aligned_sequences = env.get_alignment()
             # --- FINE INTEGRAZIONE DCNN_BDDQN ---
 

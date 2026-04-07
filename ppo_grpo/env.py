@@ -176,13 +176,13 @@ class Environment:
                 perfect_columns += 1
                 exact_matches += 1
 
-        # Normalize CS to percentage [0-100]
-        cs_percentage = (perfect_columns / cols) * 100.0 if cols > 0 else 0.0
+        # Normalize CS to ratio [0-1] to match GA-DPAMSA and DCNNMSA
+        cs_ratio = float(perfect_columns / cols) if cols > 0 else 0.0
 
         return {
             "AL": cols,  # Alignment Length
             "SP": total_sp,  # Total Sum of Pairs Score
-            "CS": cs_percentage,  # Column Score (Percentage)
+            "CS": cs_ratio,  # Column Score (Percentage)
             "EM": exact_matches  # Exact Matches (Count)
         }
 

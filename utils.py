@@ -293,6 +293,11 @@ def calculate_worst_fitted_sub_board(individual, mode):
 
         sub_board_scores.append((sp_score, cs_score, (from_row, to_row, from_column, to_column)))
 
+    if not sp_scores:
+        num_rows = len(individual)
+        num_cols = len(individual[0]) if num_rows > 0 else 0
+        return 0.0, (0, num_rows, 0, num_cols)
+
     if mode == 'sp':
         # Select the sub-board with the lowest Sum-of-Pairs score
         worst_subboard = min(sub_board_scores, key=lambda x: x[0])
@@ -796,6 +801,7 @@ def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
     mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
     return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
 
+
 # new GA NSGA-II
 def run_nsga_inference(dataset: FastaDataset, model_name):
 
@@ -844,62 +850,6 @@ def run_nsga_inference(dataset: FastaDataset, model_name):
 
     return csv_path
 
-# new GA NSGA-II
-def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
-    """
-    Run inference using NSGA-II + DCNN_BDDQN and return the results CSV file path.
-    """
-    results = []
-
-    report_dir = config.NSGA_REPORTS_PATH # Usa la cartella di config dedicata
-    os.makedirs(report_dir, exist_ok=True) # Assicurati che la cartella esista
-    
-    # 1. Cambia il nome del file per non sovrascrivere l'NSGA originale
-    dataset_safe_name = dataset.name.replace('/', '_') # Evita errori di path se il nome contiene slashes
-    report_file = os.path.join(report_dir, f"{dataset_safe_name}_NSGA-DCNN_report.txt")
-
-    with open(report_file, 'w') as report:
-
-        for fasta in dataset:
-
-            sequences = fasta.sequences
-            file_name = fasta.name
-
-            # 2. Usa l'IBRIDO
-            ga = NSGA2_DCNN_GA(sequences, mode='mo')
-
-            alignment = ga.run(model_name)
-
-            # Usiamo l'env originale di DPAMSA solo per fargli calcolare le metriche coerentemente
-            env = Environment(alignment, convert_data=False)
-            Environment.set_alignment(env, alignment)
-
-            metrics = calculate_metrics(env)
-
-            report.write(
-                f"File: {file_name}\n"
-                f"Number of Sequences (QTY): {metrics['QTY']}\n"
-                f"Alignment Length (AL): {metrics['AL']}\n"
-                f"Sum of Pairs (SP): {metrics['SP']}\n"
-                f"Exact Matches (EM): {metrics['EM']}\n"
-                f"Column Score (CS): {metrics['CS']:.3f}\n"
-                f"Alignment:\n{env.get_alignment()}\n\n"
-            )
-
-            results.append([
-                file_name,
-                metrics["QTY"],
-                metrics["AL"],
-                metrics["SP"],
-                metrics["EM"],
-                metrics["CS"]
-            ])
-
-    # 3. Cambia il nome del tool qui in "NSGA-DCNN"
-    csv_path = save_inference_csv(results, "NSGA-DCNN", dataset.name)
-
-    return csv_path
-
 def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
     """
     Run inference using NSGA-II + DCNN_BDDQN and return the results CSV file path.
@@ -907,8 +857,10 @@ def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
     # Implementation for NSGA-II + DCNN_BDDQN inference
     results = []
 
-    report_dir = config.NSGA_REPORTS_PATH
-    report_file = os.path.join(report_dir, f"{dataset.name}_NSGA-II_report.txt")
+    report_dir = config.NSGA_DCCN_REPORTS_PATH
+    report_file = os.path.join(report_dir, f"{dataset.name}_NSGA-II_DCNN_report.txt")
+
+    os.makedirs(report_dir, exist_ok=True)
 
     with open(report_file, 'w') as report:
 
@@ -917,7 +869,7 @@ def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
             sequences = fasta.sequences
             file_name = fasta.name
 
-            ga = NSGA2_GA(sequences, mode='mo')
+            ga = NSGA2_DCNN_GA(sequences, mode='mo')
 
             alignment = ga.run(model_name)
 
@@ -945,8 +897,9 @@ def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
                 metrics["EM"],
                 metrics["CS"]
             ])
-
-    csv_path = save_inference_csv(results, "NSGA-II", dataset.name)
+    csv_dir = os.path.dirname(config.NSGA_DCCN_INF_CSV_PATH) 
+    os.makedirs(csv_dir, exist_ok=True)
+    csv_path = save_inference_csv(results, "NSGA-II-DCNN", dataset.name)
 
     return csv_path
 

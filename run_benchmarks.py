@@ -54,7 +54,7 @@ def _run_external_tool(tool_name, file_paths, dataset_name):
 
 def _run_nsga_worker(dataset_path, model_name):
     print("Running NSGA-II...")
-    dataset = FastaDataset(dataset_path)
+    dataset = FastaDataset(dataset_path, encoder=encoder)
     csv_path = utils.run_nsga_inference(dataset, model_name)
     print("NSGA-II finished. CSV:", csv_path)
     return "NSGA-II", csv_path
@@ -152,7 +152,7 @@ def main():
     ctx = mp.get_context('spawn')
     
     # Passiamo il contesto all'executor
-    with ProcessPoolExecutor(mp_context=ctx) as executor:
+    with ProcessPoolExecutor(max_workers=1, mp_context=ctx) as executor:
         # GA-DPAMSA
         jobs.append(
             executor.submit(_run_ga_dpamsa_worker, dataset_path, GA_DPAMSA_MODEL)

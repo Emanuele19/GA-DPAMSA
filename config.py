@@ -30,7 +30,7 @@ PAD_CHARACTER = 'P'
 NUCLEOTIDE_ENCODING = {PAD_CHARACTER: 0, 'A': 1, 'T': 2, 'C': 3, 'G': 4, GAP_CHARACTER: 5, 'N': 6,
                        PAD_CHARACTER.lower(): 0, 'a': 1, 't': 2, 'c': 3, 'g': 4, GAP_CHARACTER: 5, 'n': 6}
 
-NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_CHARACTER}
+NUCLEOTIDE_DECODING = {0: PAD_CHARACTER, 1: 'A', 2: 'T', 3: 'C', 4: 'G', 5: GAP_CHARACTER, 6:'N'}
 
 
 
@@ -53,8 +53,6 @@ ENTROPY_COEFFICIENT = 0.005
 
 # Paths
 TENSORBOARD_PATH = "./runs/experiment_gen_01"
-MODEL_WEIGHTS_PATH = "./weights"
-
 # Symbols mapping
 NUCLEOTIDES_MAP = {
     'A': 1, 'a': 1,
@@ -163,6 +161,7 @@ INFERENCE_DATASET_PATH = os.path.join(BASE_DATASETS_PATH, "inference_dataset")
 # Model Weights Path
 DPAMSA_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "weights")
 # MODEL_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, 'DCNNMSA', 'weights') # For new models
+MODEL_WEIGHTS_PATH = os.path.join(PROJECT_ROOT, 'weights') # For new models
 
 # Tensorboard Training Runs Path
 RUNS_PATH = os.path.join(PROJECT_ROOT, "DPAMSA", "runs")
@@ -172,6 +171,7 @@ BASE_RESULTS_PATH = os.path.join(PROJECT_ROOT, "results")
 REPORTS_PATH = os.path.join(BASE_RESULTS_PATH, "reports")
 DPAMSA_REPORTS_PATH = os.path.join(REPORTS_PATH, "DPAMSA")
 GA_DPAMSA_REPORTS_PATH = os.path.join(REPORTS_PATH, "GA-DPAMSA")
+NSGA_DCCN_REPORTS_PATH = os.path.join(REPORTS_PATH, "NSGA-II-DCNN") 
 NSGA_REPORTS_PATH = os.path.join(REPORTS_PATH, "NSGA-II")
 DATASETS_REPORTS_PATH = os.path.join(REPORTS_PATH, "datasets")
 BENCHMARKS_PATH = os.path.join(BASE_RESULTS_PATH, "benchmarks")
@@ -182,6 +182,7 @@ INFERENCE_CSV_PATH = os.path.join(CSV_PATH, "inference")
 DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "DPAMSA")
 GA_DPAMSA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "GA-DPAMSA")
 NSGA_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "NSGA-II")
+NSGA_DCCN_INF_CSV_PATH = os.path.join(INFERENCE_CSV_PATH, "NSGA-II-DCNN")
 
 GRPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "GRPO")
 PPO_REPORTS_PATH = os.path.join(REPORTS_PATH, "PPO")
