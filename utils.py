@@ -12,7 +12,7 @@ from tqdm import tqdm
 from pathlib import Path
 import config
 from DPAMSA.env import Environment
-
+from NSGA_II.nsga2 import NSGA2_GA
 """
 DPAMSA Utility Functions
 
@@ -795,6 +795,53 @@ def run_ga_dpamsa_inference(mode, dataset:FastaDataset, model_path):
     mode_tag = {"sp": "Max_SP", "cs": "Max_CS", "mo": "MO"}[mode]
     return os.path.join(config.GA_DPAMSA_INF_CSV_PATH, f"{dataset.name}_{mode_tag}_GA_DPAMSA_results.csv")
 
+# new GA NSGA-II
+def run_nsga_inference(dataset: FastaDataset, model_name):
+
+    results = []
+
+    report_dir = config.NSGA_REPORTS_PATH
+    report_file = os.path.join(report_dir, f"{dataset.name}_NSGA-II_report.txt")
+
+    with open(report_file, 'w') as report:
+
+        for fasta in dataset:
+
+            sequences = fasta.sequences
+            file_name = fasta.name
+
+            ga = NSGA2_GA(sequences, mode='mo')
+
+            alignment = ga.run(model_name)
+
+            # calcolo metriche come per gli altri tool
+            env = Environment(alignment, convert_data=False)
+            Environment.set_alignment(env, alignment)
+
+            metrics = calculate_metrics(env)
+
+            report.write(
+                f"File: {file_name}\n"
+                f"Number of Sequences (QTY): {metrics['QTY']}\n"
+                f"Alignment Length (AL): {metrics['AL']}\n"
+                f"Sum of Pairs (SP): {metrics['SP']}\n"
+                f"Exact Matches (EM): {metrics['EM']}\n"
+                f"Column Score (CS): {metrics['CS']:.3f}\n"
+                f"Alignment:\n{env.get_alignment()}\n\n"
+            )
+
+            results.append([
+                file_name,
+                metrics["QTY"],
+                metrics["AL"],
+                metrics["SP"],
+                metrics["EM"],
+                metrics["CS"]
+            ])
+
+    csv_path = save_inference_csv(results, "NSGA-II", dataset.name)
+
+    return csv_path
 
 def run_dpamsa_inference(dataset: FastaDataset, model_path):
     """
@@ -1012,7 +1059,17 @@ def _find_report_file(tool_name: str, dataset_name: str) -> str | None:
     if tool_name == "DPAMSA":
         p = os.path.join(config.DPAMSA_REPORTS_PATH, f"{dataset_name}.txt")
         return p if os.path.exists(p) else None
+    
+    # NSGA-II
+    if tool_name == "NSGA-II":
+        pattern = os.path.join(config.NSGA_REPORTS_PATH, f"{dataset_name}*.txt")
+        hits = glob.glob(pattern)
 
+        if hits:
+            hits.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+            return hits[0]
+        return None
+    
     # GA-DPAMSA
     if tool_name == "GA-DPAMSA":
         # caso standard (se esiste)
