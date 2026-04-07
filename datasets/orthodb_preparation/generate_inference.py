@@ -2,8 +2,6 @@ from pathlib import Path
 import os
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-
-# Importiamo le tue classi esatte
 from dataset_module.transforms import ResolveAmbiguities, RemoveDuplicates, RandomCutSequence, BasicCompose
 from dataset_module import FastaWindowDataset
 import config

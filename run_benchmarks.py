@@ -113,6 +113,17 @@ def _run_oneshot_rl_worker(dataset_path, model_name, algo_name):
     )
     return algo_name, csv_path
 
+# Worker function per NSGA-II + DCNN_BDDQN
+def _run_nsga_dcnn_worker(dataset_path, model_name):
+    print("Running NSGA-II + DCNN_BDDQN...")
+    dataset = FastaDataset(dataset_path, encoder=encoder)
+    
+    # Richiama una funzione dedicata in utils per gestire questo specifico GA
+    csv_path = utils.run_nsga_dcnn_inference(dataset, model_name)
+    
+    print("NSGA-II + DCNN_BDDQN finished. CSV:", csv_path)
+    return "NSGA-DCNN", csv_path
+
 def main():
     """
     Main function to execute MSA benchmarking.
@@ -156,6 +167,8 @@ def main():
         jobs.append(
             executor.submit(_run_dcnnmsa_worker, dataset_path, DCNNMSA_MODEL)
         )
+
+        jobs.append(executor.submit(_run_nsga_dcnn_worker, dataset_path, DCNNMSA_MODEL))
 
         # DPAMSA if choice is 1 or 3
         if choice == 1 or choice == 3:

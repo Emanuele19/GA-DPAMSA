@@ -13,6 +13,7 @@ from pathlib import Path
 import config
 from DPAMSA.env import Environment
 from NSGA_II.nsga2 import NSGA2_GA
+from NSGA_II.nsga2_dcnn import NSGA2_DCNN_GA
 """
 DPAMSA Utility Functions
 
@@ -843,8 +844,115 @@ def run_nsga_inference(dataset: FastaDataset, model_name):
 
     return csv_path
 
+# new GA NSGA-II
+def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
+    """
+    Run inference using NSGA-II + DCNN_BDDQN and return the results CSV file path.
+    """
+    results = []
+
+    report_dir = config.NSGA_REPORTS_PATH # Usa la cartella di config dedicata
+    os.makedirs(report_dir, exist_ok=True) # Assicurati che la cartella esista
+    
+    # 1. Cambia il nome del file per non sovrascrivere l'NSGA originale
+    dataset_safe_name = dataset.name.replace('/', '_') # Evita errori di path se il nome contiene slashes
+    report_file = os.path.join(report_dir, f"{dataset_safe_name}_NSGA-DCNN_report.txt")
+
+    with open(report_file, 'w') as report:
+
+        for fasta in dataset:
+
+            sequences = fasta.sequences
+            file_name = fasta.name
+
+            # 2. Usa l'IBRIDO
+            ga = NSGA2_DCNN_GA(sequences, mode='mo')
+
+            alignment = ga.run(model_name)
+
+            # Usiamo l'env originale di DPAMSA solo per fargli calcolare le metriche coerentemente
+            env = Environment(alignment, convert_data=False)
+            Environment.set_alignment(env, alignment)
+
+            metrics = calculate_metrics(env)
+
+            report.write(
+                f"File: {file_name}\n"
+                f"Number of Sequences (QTY): {metrics['QTY']}\n"
+                f"Alignment Length (AL): {metrics['AL']}\n"
+                f"Sum of Pairs (SP): {metrics['SP']}\n"
+                f"Exact Matches (EM): {metrics['EM']}\n"
+                f"Column Score (CS): {metrics['CS']:.3f}\n"
+                f"Alignment:\n{env.get_alignment()}\n\n"
+            )
+
+            results.append([
+                file_name,
+                metrics["QTY"],
+                metrics["AL"],
+                metrics["SP"],
+                metrics["EM"],
+                metrics["CS"]
+            ])
+
+    # 3. Cambia il nome del tool qui in "NSGA-DCNN"
+    csv_path = save_inference_csv(results, "NSGA-DCNN", dataset.name)
+
+    return csv_path
+
+def run_nsga_dcnn_inference(dataset: FastaDataset, model_name):
+    """
+    Run inference using NSGA-II + DCNN_BDDQN and return the results CSV file path.
+    """
+    # Implementation for NSGA-II + DCNN_BDDQN inference
+    results = []
+
+    report_dir = config.NSGA_REPORTS_PATH
+    report_file = os.path.join(report_dir, f"{dataset.name}_NSGA-II_report.txt")
+
+    with open(report_file, 'w') as report:
+
+        for fasta in dataset:
+
+            sequences = fasta.sequences
+            file_name = fasta.name
+
+            ga = NSGA2_GA(sequences, mode='mo')
+
+            alignment = ga.run(model_name)
+
+            # calcolo metriche come per gli altri tool
+            env = Environment(alignment, convert_data=False)
+            Environment.set_alignment(env, alignment)
+
+            metrics = calculate_metrics(env)
+
+            report.write(
+                f"File: {file_name}\n"
+                f"Number of Sequences (QTY): {metrics['QTY']}\n"
+                f"Alignment Length (AL): {metrics['AL']}\n"
+                f"Sum of Pairs (SP): {metrics['SP']}\n"
+                f"Exact Matches (EM): {metrics['EM']}\n"
+                f"Column Score (CS): {metrics['CS']:.3f}\n"
+                f"Alignment:\n{env.get_alignment()}\n\n"
+            )
+
+            results.append([
+                file_name,
+                metrics["QTY"],
+                metrics["AL"],
+                metrics["SP"],
+                metrics["EM"],
+                metrics["CS"]
+            ])
+
+    csv_path = save_inference_csv(results, "NSGA-II", dataset.name)
+
+    return csv_path
+
 def run_dpamsa_inference(dataset: FastaDataset, model_path):
     """
+
     Run inference using DPAMSA and return the results CSV file path.
 
     This function executes DPAMSA (Deep reinforcement learning-based MSA) on a given
